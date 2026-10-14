@@ -332,6 +332,42 @@ qint64 LuniiDevice::storySize(const DeviceStory &s) const
     return total;
 }
 
+static QByteArray storyKeysForward(const QByteArray &, const QByteArray &, const QString &, const QByteArray &);
+
+QByteArray LuniiDevice::coverImage(const QUuid &u) const
+{
+    const int i = indexOf(u);
+    if (i < 0)
+        return {};
+    const QString dir = storyDir(m_stories[i]);
+    QFile riF(dir + "/ri"), niF(dir + "/ni");
+    if (!riF.open(QIODevice::ReadOnly))
+        return {};
+    QByteArray key = genericKey(), iv;
+    if (m_hw == HwVersion::V3) {
+        if (!checkV3Key(dir))
+            return {};
+        key = storyKeysForward(m_deviceKey, m_deviceIv, dir + "/bt", hexSnu(m_snu));
+        iv = key.mid(16);
+        key = key.left(16);
+    }
+    const QByteArray ri = decipher(riF.readAll(), key, iv);
+    int img = 0;
+    if (niF.open(QIODevice::ReadOnly)) {
+        const QByteArray ni = niF.read(0x204);
+        if (ni.size() == 0x204)
+            img = qFromLittleEndian<qint32>(ni.constData() + 0x200);
+    }
+    if (img < 0 || (img + 1) * 12 > ri.size())
+        img = 0;
+    const QString res = QString::fromLatin1(ri.mid(img * 12, 12)).replace('\\', '/');
+    QFile rf(dir + "/rf/" + res);
+    if (!rf.open(QIODevice::ReadOnly))
+        return {};
+    const QByteArray bmp = decipher(rf.readAll(), key, iv);
+    return bmp.startsWith("BM") ? bmp : QByteArray();
+}
+
 static bool saveAtomic(const QString &path, const QByteArray &data)
 {
     QSaveFile f(path);
@@ -499,6 +535,14 @@ static void storyKeysFor(const QByteArray &devKey, const QByteArray &devIv, cons
         key = reverseWords(snuHex + QByteArray(2, 0));
         iv = reverseWords(QByteArray(8, 0) + snuHex.left(8));
     }
+}
+
+static QByteArray storyKeysForward(const QByteArray &devKey, const QByteArray &devIv, const QString &btPath,
+                                   const QByteArray &snuHex)
+{
+    QByteArray k, iv;
+    storyKeysFor(devKey, devIv, btPath, snuHex, k, iv);
+    return k + iv;
 }
 
 bool LuniiDevice::checkV3Key(const QString &storyPath) const

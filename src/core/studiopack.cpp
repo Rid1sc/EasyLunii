@@ -2,6 +2,7 @@
 
 #include "core/archive.h"
 
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -137,7 +138,39 @@ QJsonObject StudioPack::toJson() const
     return root;
 }
 
-bool StudioPack::loadArchive(const QString &path, StudioPack &out, QString *error, bool withAssets)
+QByteArray StudioPack::assetData(const QString &name) const
+{
+    if (auto it = assets.constFind(name); it != assets.constEnd())
+        return *it;
+    QFile f(assetFiles.value(name));
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+qint64 StudioPack::assetSize(const QString &name) const
+{
+    if (auto it = assets.constFind(name); it != assets.constEnd())
+        return it->size();
+    return assetFiles.contains(name) ? QFileInfo(assetFiles.value(name)).size() : 0;
+}
+
+void StudioPack::putAsset(const QString &name, const QByteArray &data, const QString &spillDir)
+{
+    static const QStringList audio = {"mp3", "ogg", "oga", "wav", "m4a", "flac", "opus", "aac"};
+    const bool spill = !spillDir.isEmpty()
+                    && (audio.contains(QFileInfo(name).suffix().toLower()) || data.size() > 512 * 1024);
+    if (spill) {
+        const QString file = spillDir + "/" + name;
+        QFile f(file);
+        if (QFileInfo(file).size() == data.size() || (f.open(QIODevice::WriteOnly) && f.write(data) == data.size())) {
+            assetFiles.insert(name, file);
+            assets.remove(name);
+            return;
+        }
+    }
+    assets.insert(name, data);
+}
+
+bool StudioPack::loadArchive(const QString &path, StudioPack &out, QString *error, bool withAssets, const QString &spillDir)
 {
     ArchiveReader ar(path);
     if (!ar.isValid()) {
@@ -146,7 +179,7 @@ bool StudioPack::loadArchive(const QString &path, StudioPack &out, QString *erro
         return false;
     }
     QByteArray json, thumb;
-    QHash<QString, QByteArray> assets;
+    StudioPack holder;
     const bool ok = ar.forEach(
         [&](const ArchiveEntry &e, const QByteArray &d) {
             if (e.name == "story.json")
@@ -154,7 +187,7 @@ bool StudioPack::loadArchive(const QString &path, StudioPack &out, QString *erro
             else if (e.name == "thumbnail.png")
                 thumb = d;
             else if (e.name.startsWith("assets/"))
-                assets.insert(e.name.mid(7), d);
+                holder.putAsset(e.name.mid(7), d, spillDir);
             return true;
         },
         [&](const QString &n) { return n == "story.json" || n == "thumbnail.png" || (withAssets && n.startsWith("assets/")); });
@@ -171,7 +204,8 @@ bool StudioPack::loadArchive(const QString &path, StudioPack &out, QString *erro
         return false;
     }
     out = fromJson(doc.object());
-    out.assets = std::move(assets);
+    out.assets = std::move(holder.assets);
+    out.assetFiles = std::move(holder.assetFiles);
     out.thumbnail = thumb;
     return true;
 }
@@ -198,7 +232,7 @@ bool StudioPack::saveArchive(const QString &path, QString *error) const
     }
     used.sort();
     for (const QString &a : used)
-        ok = ok && w.add("assets/" + a, assets.value(a));
+        ok = ok && w.add("assets/" + a, assetData(a));
     ok = w.close() && ok;
     if (!ok && error)
         *error = w.error();
@@ -362,9 +396,10 @@ QStringList StudioPack::validate() const
             else if (t->optionIndex >= actions[ai].options.size())
                 issues << QObject::tr("« %1 » : option %2 hors limites.").arg(who).arg(t->optionIndex);
         }
-        if (!s.image.isEmpty() && !assets.isEmpty() && !assets.contains(s.image))
+        const bool haveAssets = !assets.isEmpty() || !assetFiles.isEmpty();
+        if (!s.image.isEmpty() && haveAssets && !hasAsset(s.image))
             issues << QObject::tr("« %1 » : image %2 manquante.").arg(who, s.image);
-        if (!s.audio.isEmpty() && !assets.isEmpty() && !assets.contains(s.audio))
+        if (!s.audio.isEmpty() && haveAssets && !hasAsset(s.audio))
             issues << QObject::tr("« %1 » : audio %2 manquant.").arg(who, s.audio);
         if (s.ctrl.autoplay && !s.ok.isSet())
             issues << QObject::tr("« %1 » : lecture auto sans transition OK (la Lunii s'arrêtera).").arg(who);

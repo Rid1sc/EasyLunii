@@ -34,6 +34,7 @@ public:
     QString author(const QUuid &u) const;
     QString pictureUrl(const QUuid &u) const;
     QString ageLabel(const QUuid &u) const;    // ex. "3+" pour les histoires officielles, sinon vide
+    qint64 durationSec(const QUuid &u) const;  // durée totale (base officielle), 0 si inconnue
 
     // Jaquette depuis le cache ; si absente et download=true, téléchargement (bloquant)
     QByteArray picture(const QUuid &u, bool download = false) const;

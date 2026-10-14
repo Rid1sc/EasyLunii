@@ -59,15 +59,24 @@ public:
     QList<ActionNode> actions;
     QJsonObject extra;
 
-    // Assets en mémoire (nom -> contenu) ; pour l'éditeur, chargés depuis l'archive
+    // Ressources : en mémoire (images) ou sur disque (sons, gros fichiers) pour limiter la RAM
     QHash<QString, QByteArray> assets;
+    QHash<QString, QString> assetFiles;   // nom -> fichier local
     QByteArray thumbnail;
+
+    bool hasAsset(const QString &name) const { return assets.contains(name) || assetFiles.contains(name); }
+    QByteArray assetData(const QString &name) const;
+    qint64 assetSize(const QString &name) const;
+    // Range une ressource : sur disque dans spillDir si c'est un son ou si elle est volumineuse
+    void putAsset(const QString &name, const QByteArray &data, const QString &spillDir);
 
     static StudioPack fromJson(const QJsonObject &root);
     QJsonObject toJson() const;
 
     // Archive STUdio (zip/7z) : story.json + assets/ + thumbnail.png
-    static bool loadArchive(const QString &path, StudioPack &out, QString *error = nullptr, bool withAssets = true);
+    // spillDir non vide : les sons sont écrits dans ce dossier au lieu de rester en mémoire
+    static bool loadArchive(const QString &path, StudioPack &out, QString *error = nullptr, bool withAssets = true,
+                            const QString &spillDir = {});
     bool saveArchive(const QString &path, QString *error = nullptr) const;
 
     QUuid packUuid() const;       // UUID du premier stage node = UUID du pack

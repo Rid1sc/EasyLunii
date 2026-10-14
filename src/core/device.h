@@ -55,6 +55,7 @@ public:
     int indexOf(const QUuid &u) const;
     QString storyDir(const DeviceStory &s) const;
     qint64 storySize(const DeviceStory &s) const;
+    QByteArray coverImage(const QUuid &u) const;   // premier écran (BMP), vide si illisible
 
     // --- Opérations (bloquantes : à lancer dans un thread de travail)
     bool importStory(const QString &archivePath);

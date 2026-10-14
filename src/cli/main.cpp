@@ -31,6 +31,7 @@ static int usage()
            "  type <archive>                  type d'archive détecté\n"
            "  studio-index <pack.zip> <dossier>  écrit ri/si/li/ni en clair\n"
            "  image <entrée> <sortie.bmp>     conversion BMP RLE4\n"
+           "  studio-resave <pack> <sortie.zip> [dossier temporaire]  relit puis réenregistre un pack\n"
            "  xxtea <enc|dec> <entrée> <sortie> [clé hex]\n"
            "  aes <enc|dec> <entrée> <sortie> <clé hex> <iv hex>\n";
     return 2;
@@ -84,6 +85,16 @@ int main(int argc, char **argv)
     }
     if (cmd == "type" && a.size() == 1) {
         out << packTypeLabel(detectPackType(a[0])) << "\n";
+        return 0;
+    }
+    if (cmd == "studio-resave" && a.size() >= 2) {
+        StudioPack p;
+        QString e;
+        if (!StudioPack::loadArchive(a[0], p, &e, true, a.value(2)) || !p.saveArchive(a[1], &e)) {
+            err << e << "\n";
+            return 1;
+        }
+        out << p.assets.size() << " ressources en mémoire, " << p.assetFiles.size() << " sur disque\n";
         return 0;
     }
     if (cmd == "image" && a.size() == 2) {

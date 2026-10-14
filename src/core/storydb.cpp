@@ -216,6 +216,12 @@ QString StoryDb::ageLabel(const QUuid &u) const
     return {};
 }
 
+qint64 StoryDb::durationSec(const QUuid &u) const
+{
+    // champ "duration" de la base officielle, en millisecondes
+    return qint64(entry(u).value("duration").toDouble()) / 1000;
+}
+
 QByteArray StoryDb::picture(const QUuid &u, bool download) const
 {
     QDir().mkpath(cacheDir());

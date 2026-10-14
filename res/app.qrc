@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>lunii-natif.png</file>
+    </qresource>
+</RCC>
