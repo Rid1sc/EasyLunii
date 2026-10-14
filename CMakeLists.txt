@@ -36,9 +36,8 @@ target_compile_options(luniicore PRIVATE -Wall -Wextra)
 add_executable(lunii-natif-cli src/cli/main.cpp)
 target_link_libraries(lunii-natif-cli PRIVATE luniicore)
 
-# --- Application graphique
-add_executable(lunii-natif
-    src/app/main.cpp
+# --- Application graphique (bibliothèque partagée avec les tests d'interface)
+add_library(luniiapp STATIC
     src/app/mainwindow.cpp
     src/app/devicewatcher.cpp
     src/app/jobqueue.cpp
@@ -50,11 +49,20 @@ add_executable(lunii-natif
     src/app/editor/graphitems.cpp
     src/app/editor/simulator.cpp
     src/app/editor/wizard.cpp
-    res/app.qrc
 )
+target_link_libraries(luniiapp PUBLIC luniicore Qt6::Widgets Qt6::Concurrent Qt6::Multimedia Qt6::Sql)
+target_compile_options(luniiapp PRIVATE -Wall -Wextra)
+
+add_executable(lunii-natif src/app/main.cpp res/app.qrc)
 target_compile_definitions(lunii-natif PRIVATE LUNII_NATIF_VERSION="${PROJECT_VERSION}")
-target_link_libraries(lunii-natif PRIVATE luniicore Qt6::Widgets Qt6::Concurrent Qt6::Multimedia Qt6::Sql)
-target_compile_options(lunii-natif PRIVATE -Wall -Wextra)
+target_link_libraries(lunii-natif PRIVATE luniiapp)
+
+option(LUNII_NATIF_TESTS "Tests d'interface" ON)
+if(LUNII_NATIF_TESTS)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    add_executable(lunii-natif-uitest tests/uitest.cpp)
+    target_link_libraries(lunii-natif-uitest PRIVATE luniiapp Qt6::Test)
+endif()
 
 install(TARGETS lunii-natif lunii-natif-cli RUNTIME DESTINATION bin)
 install(FILES res/lunii-natif.desktop DESTINATION share/applications)

@@ -523,7 +523,7 @@ void DevicePanel::exportStories(const QList<QUuid> &uuids, const QString &dir, c
             [this, done](bool ok) {
                 if (!ok)
                     emit logMessage(QtWarningMsg, tr("Export : échec (voir le journal)"));
-                if (done && !m_jobs->isBusy())
+                if (done && m_jobs->pending() == 0)   // dernière tâche de la file
                     done();
             });
     }

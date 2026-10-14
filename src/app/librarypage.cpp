@@ -219,6 +219,9 @@ LibraryPage::LibraryPage(Library *lib, JobQueue *jobs, QWidget *parent) : QWidge
         m_view->setResizeMode(QListView::Adjust);
         m_view->setSpacing(grid ? 4 : 0);
         m_view->setDragDropMode(QAbstractItemView::DragOnly);
+        // DragOnly coupe aussi les dépôts : on les réautorise pour recevoir les histoires de la Lunii
+        m_view->setAcceptDrops(true);
+        m_view->viewport()->setAcceptDrops(true);
         QSettings().setValue("library/grid", grid);
     };
     connect(m_gridBtn, &QToolButton::clicked, this, [setGrid]() { setGrid(true); });

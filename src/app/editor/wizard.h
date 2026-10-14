@@ -14,6 +14,7 @@ class QTableWidget;
 class PackWizard : public QDialog
 {
     Q_OBJECT
+    friend struct EditorPageTest;   // tests d'interface
 public:
     explicit PackWizard(const QString &spillDir, QWidget *parent = nullptr);
     lunii::StudioPack result() const { return m_result; }

@@ -50,6 +50,8 @@ public:
     void exportStories(const QList<QUuid> &uuids, const QString &dir, const std::function<void()> &done = {});
     QList<QUuid> selectedStories() const;
     void openPath(const QString &mountPoint);   // Lunii montée ailleurs (dossier de test)
+    // Exécute une opération sur la Lunii dans la file de tâches, puis recharge la liste
+    void runOnDevice(const QString &label, std::function<bool(lunii::LuniiDevice *)> op);
 
 signals:
     void deviceChanged();
@@ -70,7 +72,6 @@ private:
     void updateButtons();
     void moveSelection(int delta);
     void loadCovers();
-    void runOnDevice(const QString &label, std::function<bool(lunii::LuniiDevice *)> op);
 
     JobQueue *m_jobs;
     DeviceWatcher m_watcher;

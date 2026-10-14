@@ -62,6 +62,7 @@ private:
 class EditorPage : public QWidget
 {
     Q_OBJECT
+    friend struct EditorPageTest;   // tests d'interface
 public:
     EditorPage(JobQueue *jobs, QWidget *parent = nullptr);
 

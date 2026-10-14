@@ -8,6 +8,5 @@ Icon=lunii-natif
 Terminal=false
 Categories=AudioVideo;Audio;
 Keywords=lunii;conteuse;histoires;studio;
-MimeType=application/zip;
 StartupNotify=true
 StartupWMClass=lunii-natif
