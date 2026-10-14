@@ -455,8 +455,8 @@ void DevicePanel::updateButtons()
         for (const QUuid &u : selectedStories())
             exportable = exportable && m_device->exportAllowed(u);
     m_export->setEnabled(exportable);
-    m_export->setToolTip(exportable || !sel ? tr("Exporter vers un dossier…")
-                                            : tr("Export impossible pour les histoires officielles sur ce modèle"));
+    m_export->setToolTip(tr("Exporter vers un dossier… (histoires officielles : sauvegarde chiffrée, "
+                            "restaurable uniquement sur cette conteuse)"));
     m_list->setDragDropMode(has ? QAbstractItemView::DragDrop : QAbstractItemView::NoDragDrop);
 }
 

@@ -48,7 +48,7 @@ public:
     DeviceConfig config() const override { return m_config; }
     bool setConfig(const DeviceConfig &cfg) override;
 
-    // Export interdit pour les histoires officielles sur v1/v2 (règle de Lunii.QT, conservée)
+    // Toujours vrai ; les histoires officielles des v1/v2 sont sauvegardées chiffrées (pas d'export déchiffré)
     bool exportAllowed(const QUuid &u) const override;
 
 private:
@@ -73,6 +73,7 @@ private:
     bool importPlain(const QString &path);
     bool importV2(const QString &path);
     bool importV3(const QString &path);
+    bool restoreBackup(const QString &path);
     bool importStudio(const QString &path);
     QString exportPlain(const DeviceStory &s, const QString &outDir);
     QString exportBackup(const DeviceStory &s, const QString &outDir);

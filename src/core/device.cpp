@@ -23,6 +23,7 @@ namespace lunii {
 
 static const char *CONTENT = ".content";
 static const char *CONTENT_HIDDEN = ".content.hidden";
+static const char *BACKUP_MARKER = "_backup.json";
 
 static const QPair<quint16, quint16> V1_VIDPID{0x0c45, 0x6820};
 static const QPair<quint16, quint16> V1_FW2_VIDPID{0x0c45, 0x6840};
@@ -531,6 +532,14 @@ bool LuniiDevice::importStory(const QString &path)
         error(tr("Place insuffisante sur la Lunii (%1 Mo libres)").arg(freeSpace() / 1024 / 1024));
         return false;
     }
+    {
+        ArchiveReader probe(path);
+        if (probe.contains(BACKUP_MARKER)) {
+            const bool ok = restoreBackup(path);
+            ::sync();
+            return ok;
+        }
+    }
     const PackType t = detectPackType(path);
     debug(tr("Type d'archive : %1").arg(packTypeLabel(t)));
     bool ok = false;
@@ -662,6 +671,44 @@ bool LuniiDevice::importV2(const QString &path)
     if (!writeFile(QString("%1/%2/bt").arg(contentDir, id), m_bt))
         return false;
     m_stories << DeviceStory{u, false, nm};
+    return writePackIndex();
+}
+
+// Sauvegarde chiffrée faite par EasyLunii : copiée telle quelle, sur la Lunii d'origine seulement
+bool LuniiDevice::restoreBackup(const QString &path)
+{
+    ArchiveReader ar(path);
+    const QJsonObject marker = QJsonDocument::fromJson(ar.read(BACKUP_MARKER)).object();
+    if (marker.value("device").toString() != "lunii" || marker.value("snu").toString() != snu()) {
+        error(tr("Cette sauvegarde provient d'une autre conteuse (n° %1) : elle ne peut être restaurée que sur celle-ci")
+                  .arg(marker.value("snu").toString()));
+        return false;
+    }
+    const QUuid u(marker.value("uuid").toString());
+    if (u.isNull()) {
+        error(tr("Sauvegarde invalide"));
+        return false;
+    }
+    if (alreadyLoaded(u))
+        return false;
+    info(tr("Restauration d'une sauvegarde chiffrée…"));
+    const QString out = QString("%1/%2/%3").arg(m_mount, CONTENT, shortUuid(u));
+    bool ok = true;
+    int index = 0;
+    const int total = int(ar.entries().size());
+    ar.forEach([&](const ArchiveEntry &e, const QByteArray &data) {
+        emit storyProgress(shortUuid(u), index++, total);
+        if (aborted())
+            return ok = false;
+        if (e.name == BACKUP_MARKER)
+            return true;
+        return ok = writeFile(out + "/" + e.name.section('/', 1), data, true);
+    });
+    if (!ok) {
+        cleanStoryDir(u);
+        return false;
+    }
+    m_stories << DeviceStory{u, false, QFile::exists(out + "/nm")};
     return writePackIndex();
 }
 
@@ -800,10 +847,10 @@ bool LuniiDevice::importStudio(const QString &path)
 
 // ---------------------------------------------------------------- export
 
-bool LuniiDevice::exportAllowed(const QUuid &u) const
+bool LuniiDevice::exportAllowed(const QUuid &) const
 {
-    // Lunii.QT : export interdit pour les histoires officielles sur v1/v2 (lutte contre le piratage)
-    return m_hw == HwVersion::V3 || !StoryDb::instance().isOfficial(u);
+    // toujours possible : les histoires officielles partent en sauvegarde chiffrée liée à cette Lunii
+    return true;
 }
 
 QString LuniiDevice::exportStory(const QUuid &u, const QString &outDir)
@@ -814,16 +861,14 @@ QString LuniiDevice::exportStory(const QUuid &u, const QString &outDir)
         error(tr("Cette histoire n'est pas sur la Lunii"));
         return {};
     }
-    if (!exportAllowed(u)) {
-        error(tr("Export interdit pour les histoires officielles"));
-        return {};
-    }
     const DeviceStory &s = m_stories[i];
     if (!QFileInfo(storyDir(s)).isDir()) {
         error(tr("Dossier de l'histoire introuvable (%1)").arg(storyDir(s)));
         return {};
     }
-    return canExportPlain() ? exportPlain(s, outDir) : exportBackup(s, outDir);
+    // Lunii.QT interdit l'export déchiffré des histoires officielles sur v1/v2 : sauvegarde chiffrée à la place
+    const bool official = m_hw != HwVersion::V3 && StoryDb::instance().isOfficial(u);
+    return canExportPlain() && !official ? exportPlain(s, outDir) : exportBackup(s, outDir);
 }
 
 QString LuniiDevice::exportBackup(const DeviceStory &s, const QString &outDir)
@@ -844,6 +889,10 @@ QString LuniiDevice::exportBackup(const DeviceStory &s, const QString &outDir)
             return {};
         }
     }
+    // marqueur : sauvegarde chiffrée, restaurable uniquement sur cette Lunii
+    const QJsonObject marker{{"device", "lunii"}, {"snu", snu()}, {"uuid", uuidStr(s.uuid)}, {"nightMode", s.nightMode}};
+    if (!w.add(BACKUP_MARKER, QJsonDocument(marker).toJson(QJsonDocument::Compact)))
+        return {};
     return w.close() ? zipPath : QString();
 }
 
