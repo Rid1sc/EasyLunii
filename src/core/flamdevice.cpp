@@ -3,6 +3,7 @@
 #include "core/archive.h"
 #include "core/convert.h"
 #include "core/crypto.h"
+#include "core/platform.h"
 #include "core/liff.h"
 #include "core/packtype.h"
 #include "core/storydb.h"
@@ -18,7 +19,6 @@
 #include <QSaveFile>
 #include <QtEndian>
 
-#include <unistd.h>
 
 namespace lunii {
 
@@ -169,7 +169,7 @@ bool FlamDevice::writePackIndex()
     }
     if (!ok)
         error(tr("Échec de l'écriture de la liste des histoires"));
-    ::sync();
+    flushDisks();
     emit storiesChanged();
     return ok;
 }
@@ -319,7 +319,7 @@ bool FlamDevice::importStory(const QString &path)
         error(tr("Type d'archive non pris en charge sur la Flam : %1").arg(packTypeLabel(t)));
         return false;
     }
-    ::sync();
+    flushDisks();
     return ok;
 }
 
@@ -840,7 +840,7 @@ int FlamDevice::cleanupStories(qint64 *freedBytes)
                 ++removed;
         }
     }
-    ::sync();
+    flushDisks();
     if (freedBytes)
         *freedBytes = freed;
     return removed;

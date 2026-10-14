@@ -2,9 +2,11 @@
 
 #include "core/archive.h"
 #include "core/convert.h"
+#include "core/platform.h"
 
 #include <QBuffer>
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QCollator>
 #include <QComboBox>
 #include <QCryptographicHash>
@@ -40,16 +42,25 @@ using lunii::StudioPack;
 
 static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "flac", "opus", "aac"};
 
+// Piper : installation Linux de cette machine (venv), ou piper(.exe) à côté du programme / dans le PATH
+static QString piperDir()
+{
+#ifdef Q_OS_WIN
+    return QCoreApplication::applicationDirPath() + "/piper";
+#else
+    return QDir::homePath() + "/.local/share/piper";
+#endif
+}
+
 static QString piperBinary()
 {
-    const QString p = QDir::homePath() + "/.local/share/piper/venv/bin/piper";
-    return QFileInfo(p).isExecutable() ? p : QString();
+    return lunii::findTool("piper", {piperDir() + "/venv/bin", piperDir()});
 }
 
 static QStringList piperVoices()
 {
     QStringList out;
-    QDirIterator it(QDir::homePath() + "/.local/share/piper/voices", {"*.onnx"}, QDir::Files);
+    QDirIterator it(piperDir() + "/voices", {"*.onnx"}, QDir::Files);
     while (it.hasNext())
         out << it.next();
     out.sort();
@@ -133,7 +144,7 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     m_tts->setChecked(piper);
     m_tts->setEnabled(piper);
     if (!piper)
-        m_tts->setToolTip(tr("Piper introuvable (~/.local/share/piper)"));
+        m_tts->setToolTip(tr("Piper introuvable (%1)").arg(piperDir()));
     voiceRow->addWidget(m_tts);
     voiceRow->addWidget(m_voice, 1);
     voiceRow->addWidget(m_speaker);

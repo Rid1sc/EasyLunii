@@ -1,0 +1,17 @@
+EasyLunii pour Windows
+======================
+
+Lancer easylunii.exe. La Lunii (ou la Flam) apparaît dès qu'elle est branchée.
+
+Conversions audio : copier ffmpeg.exe dans ce dossier (ou l'installer dans le PATH).
+Version statique conseillée : https://www.gyan.dev/ffmpeg/builds/ (ffmpeg-release-essentials).
+Sans ffmpeg, les packs dont les sons sont déjà en MP3 mono 44,1 kHz restent utilisables.
+
+Annonces vocales de l'assistant (facultatif) : placer piper.exe et ses fichiers dans le
+sous-dossier « piper », et les voix (*.onnx + *.onnx.json) dans « piper\voices ».
+https://github.com/rhasspy/piper/releases
+
+Données : bases de titres et jaquettes dans %USERPROFILE%\.lunii-qt (partagées avec Lunii.QT),
+bibliothèque dans %LOCALAPPDATA%\easylunii.
+
+Licence : GPLv3 (voir LICENSE.txt). Dérivé de Lunii.QT (o-daneel) ; format des packs STUdio (marian-m12l).

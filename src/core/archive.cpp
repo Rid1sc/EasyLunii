@@ -43,8 +43,12 @@ archive *ArchiveReader::openArchive()
     archive_read_support_filter_all(a);
     // les noms des zip sans drapeau UTF-8 sont lus en CP437 par défaut : on force l'UTF-8
     archive_read_set_options(a, "zip:hdrcharset=UTF-8");
-    const QByteArray p = QFile::encodeName(m_path);
-    if (archive_read_open_filename(a, p.constData(), 1 << 16) != ARCHIVE_OK) {
+#ifdef Q_OS_WIN
+    const int opened = archive_read_open_filename_w(a, reinterpret_cast<const wchar_t *>(m_path.utf16()), 1 << 16);
+#else
+    const int opened = archive_read_open_filename(a, QFile::encodeName(m_path).constData(), 1 << 16);
+#endif
+    if (opened != ARCHIVE_OK) {
         m_error = QString::fromUtf8(archive_error_string(a));
         archive_read_free(a);
         return nullptr;
@@ -133,8 +137,12 @@ ArchiveWriter::ArchiveWriter(const QString &path, Format format, bool compress)
     } else {
         archive_write_set_format_7zip(m_ar);
     }
-    const QByteArray p = QFile::encodeName(path);
-    if (archive_write_open_filename(m_ar, p.constData()) != ARCHIVE_OK) {
+#ifdef Q_OS_WIN
+    const int opened = archive_write_open_filename_w(m_ar, reinterpret_cast<const wchar_t *>(path.utf16()));
+#else
+    const int opened = archive_write_open_filename(m_ar, QFile::encodeName(path).constData());
+#endif
+    if (opened != ARCHIVE_OK) {
         m_error = QString::fromUtf8(archive_error_string(m_ar));
         archive_write_free(m_ar);
         m_ar = nullptr;

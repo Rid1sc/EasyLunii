@@ -3,6 +3,7 @@
 #include "core/archive.h"
 #include "core/convert.h"
 #include "core/crypto.h"
+#include "core/platform.h"
 #include "core/storydb.h"
 #include "core/studiopack.h"
 
@@ -17,7 +18,6 @@
 #include <QStorageInfo>
 #include <QtEndian>
 
-#include <unistd.h>
 
 namespace lunii {
 
@@ -324,7 +324,7 @@ bool LuniiDevice::writePackIndex()
     const bool ok = saveAtomic(m_mount + "/.pi", pi) && saveAtomic(m_mount + "/.pi.hidden", piHidden);
     if (!ok)
         error(tr("Échec de l'écriture de l'index des histoires (.pi)"));
-    ::sync();
+    flushDisks();
     emit storiesChanged();
     return ok;
 }
@@ -536,7 +536,7 @@ bool LuniiDevice::importStory(const QString &path)
         ArchiveReader probe(path);
         if (probe.contains(BACKUP_MARKER)) {
             const bool ok = restoreBackup(path);
-            ::sync();
+            flushDisks();
             return ok;
         }
     }
@@ -554,7 +554,7 @@ bool LuniiDevice::importStory(const QString &path)
         error(tr("Type d'archive non pris en charge : %1").arg(packTypeLabel(t)));
         return false;
     }
-    ::sync();
+    flushDisks();
     return ok;
 }
 
@@ -991,7 +991,7 @@ bool LuniiDevice::setNightMode(const QUuid &u, bool enabled)
     const bool ok = enabled ? writeFile(nm, {}) : (!QFile::exists(nm) || QFile::remove(nm));
     if (ok)
         m_stories[i].nightMode = enabled;
-    ::sync();
+    flushDisks();
     return ok;
 }
 
@@ -1107,7 +1107,7 @@ int LuniiDevice::cleanupStories(qint64 *freedBytes)
                 warn(tr("Échec de suppression : %1").arg(dir));
         }
     }
-    ::sync();
+    flushDisks();
     if (freedBytes)
         *freedBytes = freed;
     return removed;

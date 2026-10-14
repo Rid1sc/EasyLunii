@@ -1,5 +1,7 @@
 #include "app/devicewatcher.h"
 
+#include "core/flamdevice.h"
+#include "core/platform.h"
 #include "core/storydevice.h"
 
 #include <QDir>
@@ -36,6 +38,45 @@ DeviceWatcher::DeviceWatcher(QObject *parent) : QObject(parent)
     refresh();
 }
 
+#ifdef Q_OS_WIN
+// Windows : les conteuses apparaissent comme des lecteurs FAT montés automatiquement
+void DeviceWatcher::refresh()
+{
+    QList<DetectedDevice> found;
+    for (const QStorageInfo &si : QStorageInfo::mountedVolumes()) {
+        const QString root = si.rootPath();
+        if (!lunii::StoryDevice::isStoryDevice(root))
+            continue;
+        found << DetectedDevice{root, root, lunii::FlamDevice::isFlam(root) ? QStringLiteral("Flam") : QStringLiteral("Lunii")};
+    }
+    if (found != m_devices) {
+        m_devices = found;
+        emit devicesChanged();
+    }
+}
+
+bool DeviceWatcher::mount(const QString &block, QString *mountPoint, QString *)
+{
+    *mountPoint = block;   // déjà monté par Windows
+    return true;
+}
+
+bool DeviceWatcher::eject(const QString &block, QString *error)
+{
+    lunii::flushDisks();
+    // verbe « Éjecter » de l'Explorateur (comme le menu contextuel du lecteur)
+    const QString drive = QString(block).left(2);   // « E: »
+    QProcess p;
+    p.start("powershell", {"-NoProfile", "-NonInteractive", "-Command",
+                           QString("(New-Object -ComObject Shell.Application).Namespace(17).ParseName('%1').InvokeVerb('Eject')").arg(drive)});
+    if (!p.waitForFinished(30000) || p.exitCode() != 0) {
+        if (error)
+            *error = QString::fromLocal8Bit(p.readAllStandardError()).trimmed();
+        return false;
+    }
+    return true;
+}
+#else
 void DeviceWatcher::refresh()
 {
     QHash<QString, QString> mounts;   // périphérique -> point de montage
@@ -88,7 +129,7 @@ bool DeviceWatcher::mount(const QString &block, QString *mountPoint, QString *er
 
 bool DeviceWatcher::eject(const QString &block, QString *error)
 {
-    QProcess::execute("sync", {});
+    lunii::flushDisks();
     QProcess p;
     p.start("udisksctl", {"unmount", "-b", block, "--no-user-interaction"});
     p.waitForFinished(30000);
@@ -108,3 +149,4 @@ bool DeviceWatcher::eject(const QString &block, QString *error)
     off.waitForFinished(30000);
     return true;
 }
+#endif

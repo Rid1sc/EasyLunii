@@ -61,9 +61,13 @@ QStringList StoryDevice::findDevices()
 {
     QStringList out;
     for (const QStorageInfo &si : QStorageInfo::mountedVolumes()) {
-        const QString fs = QString::fromLatin1(si.fileSystemType());
-        if (!si.device().startsWith("/dev/sd") || !(fs == "vfat" || fs.startsWith("msdos")))
+        const QString fs = QString::fromLatin1(si.fileSystemType()).toLower();
+        if (!(fs == "vfat" || fs.startsWith("msdos") || fs.startsWith("fat")))
             continue;
+#ifndef Q_OS_WIN
+        if (!si.device().startsWith("/dev/sd"))
+            continue;
+#endif
         if (isStoryDevice(si.rootPath()))
             out << si.rootPath();
     }

@@ -24,6 +24,7 @@ add_library(luniicore STATIC
     src/core/studiopack.cpp
     src/core/convert.cpp
     src/core/packtype.cpp
+    src/core/platform.cpp
     src/core/storydevice.cpp
     src/core/device.cpp
     src/core/flamdevice.cpp
@@ -56,7 +57,12 @@ add_library(luniiapp STATIC
 target_link_libraries(luniiapp PUBLIC luniicore Qt6::Widgets Qt6::Concurrent Qt6::Multimedia Qt6::Sql)
 target_compile_options(luniiapp PRIVATE -Wall -Wextra)
 
-add_executable(easylunii src/app/main.cpp res/app.qrc)
+if(WIN32)
+    # icône de l'exécutable et application sans console
+    add_executable(easylunii WIN32 src/app/main.cpp res/app.qrc res/easylunii.rc)
+else()
+    add_executable(easylunii src/app/main.cpp res/app.qrc)
+endif()
 target_compile_definitions(easylunii PRIVATE EASYLUNII_VERSION="${PROJECT_VERSION}")
 target_link_libraries(easylunii PRIVATE luniiapp)
 
@@ -68,5 +74,7 @@ if(EASYLUNII_TESTS)
 endif()
 
 install(TARGETS easylunii easylunii-cli RUNTIME DESTINATION bin)
+if(NOT WIN32)
 install(FILES res/easylunii.desktop DESTINATION share/applications)
 install(FILES res/easylunii-512.png DESTINATION share/icons/hicolor/512x512/apps RENAME easylunii.png)
+endif()

@@ -1,5 +1,6 @@
 #include "core/convert.h"
 
+#include "core/platform.h"
 #include "core/storydb.h"
 
 #include <QBuffer>
@@ -184,10 +185,7 @@ QByteArray stripMp3Tags(const QByteArray &data)
 
 QString ffmpegPath()
 {
-    const QFileInfo local(configDir() + "/ffmpeg");
-    if (local.isExecutable())
-        return local.absoluteFilePath();
-    return QStandardPaths::findExecutable("ffmpeg");
+    return findTool("ffmpeg");
 }
 
 QByteArray transcodeToMp3(const QByteArray &data, QString *error)
