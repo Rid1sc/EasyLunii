@@ -1,12 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=Lunii Natif
+Name=EasyLunii
 GenericName=Gestionnaire d'histoires Lunii
 Comment=Bibliothèque d'histoires, transferts vers la Lunii et éditeur de packs
-Exec=lunii-natif %F
-Icon=lunii-natif
+Exec=easylunii %F
+Icon=easylunii
 Terminal=false
 Categories=AudioVideo;Audio;
 Keywords=lunii;conteuse;histoires;studio;
 StartupNotify=true
-StartupWMClass=lunii-natif
+StartupWMClass=easylunii

@@ -25,8 +25,8 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    setWindowTitle(tr("Lunii Natif"));
-    setWindowIcon(QIcon(":/icons/lunii-natif.png"));
+    setWindowTitle(tr("EasyLunii"));
+    setWindowIcon(QIcon(":/icons/easylunii.png"));
 
     m_lib = new Library(this);
     m_jobs = new JobQueue(this);
@@ -166,8 +166,8 @@ void MainWindow::buildMenus()
 
 void MainWindow::about()
 {
-    QMessageBox::about(this, tr("À propos de Lunii Natif"),
-                       tr("<h3>Lunii Natif %1</h3>"
+    QMessageBox::about(this, tr("À propos de EasyLunii"),
+                       tr("<h3>EasyLunii %1</h3>"
                           "<p>Gestion des histoires de la Lunii : bibliothèque, transferts et éditeur de packs.</p>"
                           "<p>Application C++/Qt dérivée de <a href='https://github.com/o-daneel/Lunii.QT'>Lunii.QT</a> "
                           "(o-daneel, GPLv3). Format des packs : "

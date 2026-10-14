@@ -9,8 +9,8 @@
 class Library;
 
 namespace mime {
-inline const char *libraryPaths = "application/x-lunii-natif-library";   // chemins d'archives, un par ligne
-inline const char *deviceStories = "application/x-lunii-natif-device";   // UUID d'histoires de la Lunii
+inline const char *libraryPaths = "application/x-easylunii-library";   // chemins d'archives, un par ligne
+inline const char *deviceStories = "application/x-easylunii-device";   // UUID d'histoires de la Lunii
 }
 
 class LibraryModel : public QAbstractListModel

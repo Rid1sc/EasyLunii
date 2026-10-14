@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(LuniiNatif VERSION 0.1.0 LANGUAGES CXX)
+project(EasyLunii VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,8 +36,8 @@ target_link_libraries(luniicore PUBLIC Qt6::Core Qt6::Gui Qt6::Network OpenSSL::
 target_compile_options(luniicore PRIVATE -Wall -Wextra)
 
 # --- Outil en ligne de commande (tests et scripts)
-add_executable(lunii-natif-cli src/cli/main.cpp)
-target_link_libraries(lunii-natif-cli PRIVATE luniicore)
+add_executable(easylunii-cli src/cli/main.cpp)
+target_link_libraries(easylunii-cli PRIVATE luniicore)
 
 # --- Application graphique (bibliothèque partagée avec les tests d'interface)
 add_library(luniiapp STATIC
@@ -56,17 +56,17 @@ add_library(luniiapp STATIC
 target_link_libraries(luniiapp PUBLIC luniicore Qt6::Widgets Qt6::Concurrent Qt6::Multimedia Qt6::Sql)
 target_compile_options(luniiapp PRIVATE -Wall -Wextra)
 
-add_executable(lunii-natif src/app/main.cpp res/app.qrc)
-target_compile_definitions(lunii-natif PRIVATE LUNII_NATIF_VERSION="${PROJECT_VERSION}")
-target_link_libraries(lunii-natif PRIVATE luniiapp)
+add_executable(easylunii src/app/main.cpp res/app.qrc)
+target_compile_definitions(easylunii PRIVATE EASYLUNII_VERSION="${PROJECT_VERSION}")
+target_link_libraries(easylunii PRIVATE luniiapp)
 
-option(LUNII_NATIF_TESTS "Tests d'interface" ON)
-if(LUNII_NATIF_TESTS)
+option(EASYLUNII_TESTS "Tests d'interface" ON)
+if(EASYLUNII_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    add_executable(lunii-natif-uitest tests/uitest.cpp)
-    target_link_libraries(lunii-natif-uitest PRIVATE luniiapp Qt6::Test)
+    add_executable(easylunii-uitest tests/uitest.cpp)
+    target_link_libraries(easylunii-uitest PRIVATE luniiapp Qt6::Test)
 endif()
 
-install(TARGETS lunii-natif lunii-natif-cli RUNTIME DESTINATION bin)
-install(FILES res/lunii-natif.desktop DESTINATION share/applications)
-install(FILES res/lunii-natif.png DESTINATION share/icons/hicolor/512x512/apps)
+install(TARGETS easylunii easylunii-cli RUNTIME DESTINATION bin)
+install(FILES res/easylunii.desktop DESTINATION share/applications)
+install(FILES res/easylunii-512.png DESTINATION share/icons/hicolor/512x512/apps RENAME easylunii.png)

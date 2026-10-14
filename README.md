@@ -1,4 +1,4 @@
-# Lunii Natif
+# EasyLunii
 
 Gestionnaire d'histoires pour la Lunii, en C++/Qt 6 natif : bibliothèque, transferts vers l'appareil, éditeur de packs façon STUdio.
 
@@ -41,9 +41,9 @@ Dépendances (Fedora) : `qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qtsvg-devel
 Au moment de l'exécution : `ffmpeg` (conversions audio), `udisks2` (montage), et, facultatif, Piper dans `~/.local/share/piper` pour les annonces vocales.
 
 ```sh
-cmake -S . -B ~/.cache/lunii-natif-build -G Ninja
-cmake --build ~/.cache/lunii-natif-build
-cmake --install ~/.cache/lunii-natif-build --prefix ~/.local
+cmake -S . -B ~/.cache/easylunii-build -G Ninja
+cmake --build ~/.cache/easylunii-build
+cmake --install ~/.cache/easylunii-build --prefix ~/.local
 ```
 
 Le dossier de compilation est hors du disque externe : l'exFAT n'accepte pas les liens symboliques.
@@ -54,16 +54,16 @@ Le dossier de compilation est hors du disque externe : l'exFAT n'accepte pas les
 |---|---|
 | `src/core` | Accès aux Lunii, chiffrement XXTEA/AES, formats (STUdio, plain, v2, v3), conversions, bases de titres. Sans interface. |
 | `src/app` | Fenêtre, bibliothèque (index, modèle, page), panneau Lunii, file de tâches, éditeur (`editor/` : graphe, simulateur, assistant). |
-| `src/cli` | `lunii-natif-cli` : accès au cœur en ligne de commande (tests, scripts). |
-| `tests` | `lunii-natif-uitest` : tests d'interface sur une fausse Lunii. |
+| `src/cli` | `easylunii-cli` : accès au cœur en ligne de commande (tests, scripts). |
+| `tests` | `easylunii-uitest` : tests d'interface sur une fausse Lunii. |
 
-Données : index et réglages dans `~/.local/share/lunii-natif` et `~/.config/lunii-natif`, vignettes dans `~/.cache/lunii-natif`. Bases de titres et cache des jaquettes partagés avec Lunii.QT dans `~/.lunii-qt`.
+Données : index et réglages dans `~/.local/share/easylunii` et `~/.config/easylunii`, vignettes dans `~/.cache/easylunii`. Bases de titres et cache des jaquettes partagés avec Lunii.QT dans `~/.lunii-qt`.
 
 ## Tests
 
 - **Cœur, comparé à Lunii.QT v3.1.4.** Les sorties sont identiques octet par octet pour XXTEA et AES (7 tailles), pour les imports STUdio, zip v2 et 7z sur une fausse v3 et une fausse v2, et pour l'export `.plain.pk` et son réimport. Seule différence : la mise en forme JSON de `_metadata.json`. Les fausses Lunii sont construites avec les `.md` de vrais appareils.
-- **Interface.** `lunii-natif-uitest <dossier .md> <pack.zip> [zips…]` couvre le dépôt sur la Lunii, le refus des doublons, l'export, le masquage, la suppression, le glisser de la Lunii vers la bibliothèque et la réindexation, le dépôt sur une collection, l'éditeur (ajout, lien, annulation, suppression, enregistrement) et l'assistant.
-- **Enregistrement des packs.** `lunii-natif-cli studio-resave` relit puis réenregistre un pack : `story.json`, les ressources et la vignette sont identiques.
+- **Interface.** `easylunii-uitest <dossier .md> <pack.zip> [zips…]` couvre le dépôt sur la Lunii, le refus des doublons, l'export, le masquage, la suppression, le glisser de la Lunii vers la bibliothèque et la réindexation, le dépôt sur une collection, l'éditeur (ajout, lien, annulation, suppression, enregistrement) et l'assistant.
+- **Enregistrement des packs.** `easylunii-cli studio-resave` relit puis réenregistre un pack : `story.json`, les ressources et la vignette sont identiques.
 
 ## Pas encore fait
 

@@ -1,4 +1,4 @@
-// lunii-natif-cli : accès en ligne de commande au cœur (tests, scripts).
+// easylunii-cli : accès en ligne de commande au cœur (tests, scripts).
 #include "core/convert.h"
 #include "core/crypto.h"
 #include "core/device.h"
@@ -19,7 +19,7 @@ static QTextStream err(stderr);
 
 static int usage()
 {
-    err << "Usage : lunii-natif-cli <commande> …\n"
+    err << "Usage : easylunii-cli <commande> …\n"
            "  devices                         Lunii montées\n"
            "  info <montage>                  modèle, firmware, clés\n"
            "  list <montage>                  histoires (ordre de la Lunii)\n"

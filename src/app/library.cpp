@@ -25,14 +25,14 @@ int LibraryItem::ageValue() const
 
 QString Library::dataDir()
 {
-    const QString d = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/lunii-natif";
+    const QString d = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/easylunii";
     QDir().mkpath(d);
     return d;
 }
 
 QString Library::thumbDir()
 {
-    const QString d = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/lunii-natif/thumbs";
+    const QString d = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/easylunii/thumbs";
     QDir().mkpath(d);
     return d;
 }

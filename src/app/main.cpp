@@ -10,11 +10,11 @@
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    QApplication::setApplicationName("lunii-natif");
-    QApplication::setApplicationDisplayName("Lunii Natif");
-    QApplication::setOrganizationName("lunii-natif");
-    QApplication::setApplicationVersion(QStringLiteral(LUNII_NATIF_VERSION));
-    QApplication::setDesktopFileName("lunii-natif");
+    QApplication::setApplicationName("easylunii");
+    QApplication::setApplicationDisplayName("EasyLunii");
+    QApplication::setOrganizationName("easylunii");
+    QApplication::setApplicationVersion(QStringLiteral(EASYLUNII_VERSION));
+    QApplication::setDesktopFileName("easylunii");
     QPixmapCache::setCacheLimit(48 * 1024);   // vignettes affichées (Ko)
 
     QCommandLineParser cli;
@@ -32,9 +32,9 @@ int main(int argc, char **argv)
         w.openInEditor(cli.positionalArguments().first());
     w.show();
 
-    // aide au développement : LUNII_NATIF_GRAB=fichier.png enregistre une capture de la fenêtre
+    // aide au développement : EASYLUNII_GRAB=fichier.png enregistre une capture de la fenêtre
     // toutes les 3 s (fiable même quand la fenêtre est masquée par d'autres)
-    const QString grab = qEnvironmentVariable("LUNII_NATIF_GRAB");
+    const QString grab = qEnvironmentVariable("EASYLUNII_GRAB");
     if (!grab.isEmpty()) {
         auto *t = new QTimer(&w);
         QObject::connect(t, &QTimer::timeout, &w, [&w, grab]() { w.grab().save(grab); });

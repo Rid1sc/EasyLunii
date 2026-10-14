@@ -1,5 +1,5 @@
 // Tests de l'interface sur une fausse Lunii (copie d'un .md réel) : dépôts, ordre, export, éditeur.
-// Usage : lunii-natif-uitest <dossier .md/.cfg d'une Lunii> <pack STUdio.zip>
+// Usage : easylunii-uitest <dossier .md/.cfg d'une Lunii> <pack STUdio.zip>
 #include "app/editorpage.h"
 
 #include "app/devicepanel.h"
@@ -279,10 +279,10 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
     QStandardPaths::setTestModeEnabled(true);   // configuration et caches isolés (~/.qttest)
-    QApplication::setOrganizationName("lunii-natif-test");
-    QApplication::setApplicationName("lunii-natif-test");
+    QApplication::setOrganizationName("easylunii-test");
+    QApplication::setApplicationName("easylunii-test");
     if (argc < 3) {
-        qWarning("usage : lunii-natif-uitest <dossier .md> <pack.zip>");
+        qWarning("usage : easylunii-uitest <dossier .md> <pack.zip>");
         return 2;
     }
     g_mdDir = argv[1];
