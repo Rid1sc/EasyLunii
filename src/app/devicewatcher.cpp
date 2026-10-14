@@ -1,6 +1,6 @@
 #include "app/devicewatcher.h"
 
-#include "core/device.h"
+#include "core/storydevice.h"
 
 #include <QDir>
 #include <QFile>
@@ -16,6 +16,8 @@ static QString modelFor(const QString &vid, const QString &pid)
         return QStringLiteral("Lunii v1");
     if (vid == "0483" && pid == "a341")
         return QStringLiteral("Lunii v2/v3");
+    if (vid == "303a" && pid == "819e")
+        return QStringLiteral("Flam");
     return {};
 }
 

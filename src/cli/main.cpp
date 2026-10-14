@@ -2,11 +2,13 @@
 #include "core/convert.h"
 #include "core/crypto.h"
 #include "core/device.h"
+#include "core/flamdevice.h"
 #include "core/packtype.h"
 #include "core/storydb.h"
 #include "core/studiopack.h"
 
 #include <QCoreApplication>
+#include <memory>
 #include <QFile>
 #include <QTextStream>
 
@@ -49,7 +51,7 @@ static bool writeFile(const QString &p, const QByteArray &d)
     return f.open(QIODevice::WriteOnly) && f.write(d) == d.size();
 }
 
-static QUuid findStory(const LuniiDevice &dev, const QString &part)
+static QUuid findStory(const StoryDevice &dev, const QString &part)
 {
     const QString p = QString(part).remove('-').toUpper();
     for (const DeviceStory &s : dev.stories())
@@ -58,9 +60,9 @@ static QUuid findStory(const LuniiDevice &dev, const QString &part)
     return {};
 }
 
-static void attachLog(LuniiDevice &dev, bool verbose)
+static void attachLog(StoryDevice &dev, bool verbose)
 {
-    QObject::connect(&dev, &LuniiDevice::log, [verbose](int level, const QString &m) {
+    QObject::connect(&dev, &StoryDevice::log, [verbose](int level, const QString &m) {
         if (level == QtDebugMsg && !verbose)
             return;
         const char *tag = level == QtCriticalMsg ? "ERREUR " : level == QtWarningMsg ? "ATTENTION " : "";
@@ -79,7 +81,7 @@ int main(int argc, char **argv)
     const QString cmd = a.takeFirst();
 
     if (cmd == "devices") {
-        for (const QString &m : LuniiDevice::findDevices())
+        for (const QString &m : StoryDevice::findDevices())
             out << m << "\n";
         return 0;
     }
@@ -129,17 +131,17 @@ int main(int argc, char **argv)
     if (a.isEmpty())
         return usage();
     StoryDb::instance().load(false);
-    LuniiDevice dev(a.takeFirst());
-    attachLog(dev, verbose);
-    if (!dev.isValid()) {
-        err << "Pas une Lunii (.md absent)\n";
+    std::unique_ptr<StoryDevice> devPtr(StoryDevice::open(a.takeFirst()));
+    if (!devPtr || !devPtr->isValid()) {
+        err << "Ni Lunii (.md) ni Flam (.mdf)\n";
         return 1;
     }
+    StoryDevice &dev = *devPtr;
+    attachLog(dev, verbose);
 
     if (cmd == "info") {
         out << dev.describe() << "\n"
-            << "import : " << (dev.canImport() ? "oui" : "non") << ", export déchiffré : "
-            << (dev.canExportPlain() ? "oui" : "non") << "\n"
+            << "import : " << (dev.canImport() ? "oui" : "non") << "\n"
             << "histoires : " << dev.stories().size() << ", libre : " << dev.freeSpace() / 1024 / 1024 << " Mo\n";
         return 0;
     }

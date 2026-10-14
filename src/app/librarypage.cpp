@@ -4,7 +4,7 @@
 #include "app/jobqueue.h"
 #include "app/library.h"
 #include "app/librarymodel.h"
-#include "core/device.h"
+#include "core/storydevice.h"
 #include "core/packtype.h"
 
 #include <QComboBox>

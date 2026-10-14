@@ -2,7 +2,7 @@
 #pragma once
 
 #include "app/devicewatcher.h"
-#include "core/device.h"
+#include "core/storydevice.h"
 
 #include <QListWidget>
 #include <QPointer>
@@ -42,7 +42,7 @@ class DevicePanel : public QWidget
 public:
     DevicePanel(JobQueue *jobs, QWidget *parent = nullptr);
 
-    lunii::LuniiDevice *device() const { return m_device; }
+    lunii::StoryDevice *device() const { return m_device; }
     QSet<QString> storyUuids() const;   // UUID canoniques présents sur la Lunii
     bool hasDevice() const { return m_device != nullptr; }
 
@@ -51,7 +51,7 @@ public:
     QList<QUuid> selectedStories() const;
     void openPath(const QString &mountPoint);   // Lunii montée ailleurs (dossier de test)
     // Exécute une opération sur la Lunii dans la file de tâches, puis recharge la liste
-    void runOnDevice(const QString &label, std::function<bool(lunii::LuniiDevice *)> op);
+    void runOnDevice(const QString &label, std::function<bool(lunii::StoryDevice *)> op);
 
 signals:
     void deviceChanged();
@@ -75,7 +75,7 @@ private:
 
     JobQueue *m_jobs;
     DeviceWatcher m_watcher;
-    QPointer<lunii::LuniiDevice> m_device;
+    QPointer<lunii::StoryDevice> m_device;
     QString m_block;
     QComboBox *m_combo;
     QPushButton *m_mountBtn, *m_ejectBtn;

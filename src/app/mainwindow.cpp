@@ -5,7 +5,7 @@
 #include "app/jobqueue.h"
 #include "app/library.h"
 #include "app/librarypage.h"
-#include "core/device.h"
+#include "core/storydevice.h"
 #include "core/storydb.h"
 
 #include <QApplication>

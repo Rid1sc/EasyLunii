@@ -24,7 +24,10 @@ add_library(luniicore STATIC
     src/core/studiopack.cpp
     src/core/convert.cpp
     src/core/packtype.cpp
+    src/core/storydevice.cpp
     src/core/device.cpp
+    src/core/flamdevice.cpp
+    src/core/liff.cpp
     src/core/packinfo.cpp
     res/core.qrc
 )

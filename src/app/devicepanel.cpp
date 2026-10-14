@@ -3,7 +3,7 @@
 #include "app/jobqueue.h"
 #include "app/library.h"
 #include "app/librarymodel.h"
-#include "core/device.h"
+#include "core/storydevice.h"
 #include "core/storydb.h"
 
 #include <QComboBox>
@@ -27,7 +27,7 @@
 #include <QVBoxLayout>
 #include <QtConcurrent>
 
-using lunii::LuniiDevice;
+using lunii::StoryDevice;
 
 static const int UuidRole = Qt::UserRole + 1;
 
@@ -147,7 +147,7 @@ DevicePanel::DevicePanel(JobQueue *jobs, QWidget *parent) : QWidget(parent), m_j
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(6, 6, 6, 6);
 
-    auto *title = new QLabel(tr("<b>Lunii</b>"), this);
+    auto *title = new QLabel(tr("<b>Conteuse</b> (Lunii ou Flam)"), this);
     lay->addWidget(title);
 
     auto *row = new QHBoxLayout;
@@ -218,14 +218,14 @@ DevicePanel::DevicePanel(JobQueue *jobs, QWidget *parent) : QWidget(parent), m_j
     });
     connect(m_list, &DeviceList::archivesDropped, this, [this](const QStringList &p, int) { sendToDevice(p); });
     connect(m_list, &DeviceList::orderChanged, this, [this](const QList<QUuid> &order) {
-        runOnDevice(tr("Réorganisation"), [order](LuniiDevice *d) { return d->reorder(order); });
+        runOnDevice(tr("Réorganisation"), [order](StoryDevice *d) { return d->reorder(order); });
     });
     connect(m_list, &QListWidget::itemSelectionChanged, this, &DevicePanel::updateButtons);
     connect(m_up, &QToolButton::clicked, this, [this]() { moveSelection(-1); });
     connect(m_down, &QToolButton::clicked, this, [this]() { moveSelection(1); });
     connect(m_hide, &QToolButton::clicked, this, [this]() {
         const auto sel = selectedStories();
-        runOnDevice(tr("Masquage"), [sel](LuniiDevice *d) {
+        runOnDevice(tr("Masquage"), [sel](StoryDevice *d) {
             bool ok = true;
             for (const QUuid &u : sel) {
                 const int i = d->indexOf(u);
@@ -236,7 +236,7 @@ DevicePanel::DevicePanel(JobQueue *jobs, QWidget *parent) : QWidget(parent), m_j
     });
     connect(m_night, &QToolButton::clicked, this, [this]() {
         const auto sel = selectedStories();
-        runOnDevice(tr("Mode nuit"), [sel](LuniiDevice *d) {
+        runOnDevice(tr("Mode nuit"), [sel](StoryDevice *d) {
             bool ok = true;
             for (const QUuid &u : sel) {
                 const int i = d->indexOf(u);
@@ -262,7 +262,7 @@ DevicePanel::DevicePanel(JobQueue *jobs, QWidget *parent) : QWidget(parent), m_j
                                       .arg(names.join('\n')))
             != QMessageBox::Yes)
             return;
-        runOnDevice(tr("Suppression"), [sel](LuniiDevice *d) {
+        runOnDevice(tr("Suppression"), [sel](StoryDevice *d) {
             bool ok = true;
             for (const QUuid &u : sel)
                 ok = d->removeStory(u) && ok;
@@ -309,10 +309,10 @@ void DevicePanel::selectDevice(int index)
         return;   // pas de changement d'appareil pendant un transfert
     delete m_device;
     m_block = block;
-    if (!mp.isEmpty() && LuniiDevice::isLunii(mp)) {
-        m_device = new LuniiDevice(mp, this);
-        connect(m_device, &LuniiDevice::log, this, &DevicePanel::logMessage);
-        connect(m_device, &LuniiDevice::storyProgress, this,
+    if (!mp.isEmpty() && StoryDevice::isStoryDevice(mp)) {
+        m_device = StoryDevice::open(mp, this);
+        connect(m_device, &StoryDevice::log, this, &DevicePanel::logMessage);
+        connect(m_device, &StoryDevice::storyProgress, this,
                 [this](const QString &id, int c, int t) { emit progress(id, c, t); });
     }
     reloadStories();
@@ -323,9 +323,14 @@ void DevicePanel::openPath(const QString &mountPoint)
 {
     delete m_device;
     m_block.clear();
-    m_device = new LuniiDevice(mountPoint, this);
-    connect(m_device, &LuniiDevice::log, this, &DevicePanel::logMessage);
-    connect(m_device, &LuniiDevice::storyProgress, this,
+    m_device = StoryDevice::open(mountPoint, this);
+    if (!m_device) {
+        emit logMessage(QtWarningMsg, tr("Ni Lunii ni Flam dans %1").arg(mountPoint));
+        reloadStories();
+        return;
+    }
+    connect(m_device, &StoryDevice::log, this, &DevicePanel::logMessage);
+    connect(m_device, &StoryDevice::storyProgress, this,
             [this](const QString &id, int c, int t) { emit progress(id, c, t); });
     m_combo->blockSignals(true);
     m_combo->insertItem(0, QIcon::fromTheme("folder"), mountPoint);
@@ -388,7 +393,7 @@ void DevicePanel::loadCovers()
     QList<QUuid> ids;
     for (const auto &s : m_device->stories())
         ids << s.uuid;
-    QPointer<LuniiDevice> dev = m_device;
+    QPointer<StoryDevice> dev = m_device;
     auto *w = new QFutureWatcher<QHash<QString, QString>>(this);
     connect(w, &QFutureWatcher<QHash<QString, QString>>::finished, this, [this, w, gen]() {
         const auto files = w->result();
@@ -444,6 +449,7 @@ void DevicePanel::updateButtons()
     const bool sel = has && !m_list->selectedItems().isEmpty();
     for (auto *b : {m_up, m_down, m_hide, m_night, m_remove})
         b->setEnabled(sel);
+    m_night->setEnabled(sel && m_device->supportsNightMode());   // pas de mode nuit par histoire sur la Flam
     bool exportable = sel;
     if (sel)
         for (const QUuid &u : selectedStories())
@@ -473,14 +479,14 @@ void DevicePanel::moveSelection(int delta)
             return;
         order.move(r, to);
     }
-    runOnDevice(tr("Réorganisation"), [order](LuniiDevice *d) { return d->reorder(order); });
+    runOnDevice(tr("Réorganisation"), [order](StoryDevice *d) { return d->reorder(order); });
 }
 
-void DevicePanel::runOnDevice(const QString &label, std::function<bool(LuniiDevice *)> op)
+void DevicePanel::runOnDevice(const QString &label, std::function<bool(StoryDevice *)> op)
 {
     if (!m_device)
         return;
-    QPointer<LuniiDevice> dev = m_device;
+    QPointer<StoryDevice> dev = m_device;
     m_busy = true;
     updateButtons();
     m_jobs->enqueue(
@@ -506,7 +512,7 @@ void DevicePanel::sendToDevice(const QStringList &archives)
     }
     for (const QString &p : archives) {
         const QString name = QFileInfo(p).completeBaseName();
-        runOnDevice(tr("Envoi de « %1 »").arg(name), [p](LuniiDevice *d) { return d->importStory(p); });
+        runOnDevice(tr("Envoi de « %1 »").arg(name), [p](StoryDevice *d) { return d->importStory(p); });
     }
 }
 
@@ -514,7 +520,7 @@ void DevicePanel::exportStories(const QList<QUuid> &uuids, const QString &dir, c
 {
     if (!m_device)
         return;
-    QPointer<LuniiDevice> dev = m_device;
+    QPointer<StoryDevice> dev = m_device;
     for (const QUuid &u : uuids) {
         const QString t = lunii::StoryDb::instance().title(u);
         m_jobs->enqueue(
@@ -533,7 +539,7 @@ void DevicePanel::recover()
 {
     if (!m_device)
         return;
-    QPointer<LuniiDevice> dev = m_device;
+    QPointer<StoryDevice> dev = m_device;
     auto found = std::make_shared<int>(0);
     m_jobs->enqueue(
         tr("Recherche des histoires perdues"), [dev, found]() { return dev && (*found = dev->recoverStories(true)) >= 0; },
@@ -546,7 +552,7 @@ void DevicePanel::recover()
                                       tr("%n histoire(s) présente(s) sur la Lunii mais absente(s) de sa liste. "
                                          "Les réintégrer ?", nullptr, *found))
                 == QMessageBox::Yes)
-                runOnDevice(tr("Récupération"), [](LuniiDevice *d) { return d->recoverStories(false) >= 0; });
+                runOnDevice(tr("Récupération"), [](StoryDevice *d) { return d->recoverStories(false) >= 0; });
         });
 }
 
@@ -559,7 +565,7 @@ void DevicePanel::cleanup()
                                  "Pensez à lancer d'abord « Récupérer les histoires perdues »."))
         != QMessageBox::Yes)
         return;
-    runOnDevice(tr("Nettoyage"), [](LuniiDevice *d) {
+    runOnDevice(tr("Nettoyage"), [](StoryDevice *d) {
         qint64 freed = 0;
         d->cleanupStories(&freed);
         return true;
@@ -570,6 +576,10 @@ void DevicePanel::nightModeSettings()
 {
     if (!m_device)
         return;
+    if (!m_device->supportsNightMode()) {
+        QMessageBox::information(this, tr("Mode nuit"), tr("Les réglages du mode nuit ne concernent que la Lunii."));
+        return;
+    }
     lunii::DeviceConfig cfg = m_device->config();
     QDialog dlg(this);
     dlg.setWindowTitle(tr("Mode nuit"));
@@ -613,5 +623,5 @@ void DevicePanel::nightModeSettings()
     cfg.values[lunii::DeviceConfig::NmAutoplay] = autoplay->isChecked();
     cfg.values[lunii::DeviceConfig::NmStoryCount] = count->value();
     cfg.values[lunii::DeviceConfig::NmTurnoff] = turnoff->isChecked();
-    runOnDevice(tr("Réglages du mode nuit"), [cfg](LuniiDevice *d) { return d->setConfig(cfg); });
+    runOnDevice(tr("Réglages du mode nuit"), [cfg](StoryDevice *d) { return d->setConfig(cfg); });
 }

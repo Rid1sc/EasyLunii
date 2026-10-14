@@ -9,6 +9,8 @@
 #include "app/librarypage.h"
 #include "app/editor/graphitems.h"
 #include "app/editor/wizard.h"
+#include "core/device.h"
+#include "core/flamdevice.h"
 #include "core/storydb.h"
 #include "core/studiopack.h"
 
@@ -121,16 +123,16 @@ static void testDevicePanel()
 
     // masquage puis retour
     QUuid u = p.packUuid();
-    panel.runOnDevice("masquer", [u](lunii::LuniiDevice *d) { return d->setHidden(u, true); });
+    panel.runOnDevice("masquer", [u](lunii::StoryDevice *d) { return d->setHidden(u, true); });
     waitIdle(jobs);
     CHECK(panel.device()->stories().at(panel.device()->indexOf(u)).hidden);
     CHECK(QFileInfo(mount + "/.content.hidden/" + lunii::shortUuid(u)).isDir());
-    panel.runOnDevice("afficher", [u](lunii::LuniiDevice *d) { return d->setHidden(u, false); });
+    panel.runOnDevice("afficher", [u](lunii::StoryDevice *d) { return d->setHidden(u, false); });
     waitIdle(jobs);
     CHECK(!panel.device()->stories().at(panel.device()->indexOf(u)).hidden);
 
     // suppression
-    panel.runOnDevice("suppression", [u](lunii::LuniiDevice *d) { return d->removeStory(u); });
+    panel.runOnDevice("suppression", [u](lunii::StoryDevice *d) { return d->removeStory(u); });
     waitIdle(jobs);
     CHECK(panel.device()->stories().size() == before);
     CHECK(!QFileInfo(mount + "/.content/" + lunii::shortUuid(u)).exists());

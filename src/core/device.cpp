@@ -28,45 +28,12 @@ static const QPair<quint16, quint16> V1_VIDPID{0x0c45, 0x6820};
 static const QPair<quint16, quint16> V1_FW2_VIDPID{0x0c45, 0x6840};
 static const QPair<quint16, quint16> V2_V3_VIDPID{0x0483, 0xa341};
 
-QString DeviceStory::shortId() const
-{
-    return shortUuid(uuid);
-}
-
-QString secureFileName(const QString &name)
-{
-    static const QString invalid = QStringLiteral("/\\?%*:|\"<>");
-    QString n = name.normalized(QString::NormalizationForm_KD);
-    n.replace(QChar(0x0141), 'L').replace(QChar(0x0142), 'l');
-    QString out;
-    for (QChar c : n) {
-        if (invalid.contains(c))
-            out += '_';
-        else if (c.unicode() < 128)
-            out += c;
-    }
-    return out;
-}
-
 bool LuniiDevice::isLunii(const QString &mountPoint)
 {
     return QFileInfo(mountPoint + "/.md").isFile();
 }
 
-QStringList LuniiDevice::findDevices()
-{
-    QStringList out;
-    for (const QStorageInfo &si : QStorageInfo::mountedVolumes()) {
-        const QString fs = QString::fromLatin1(si.fileSystemType());
-        if (!si.device().startsWith("/dev/sd") || !(fs == "vfat" || fs.startsWith("msdos")))
-            continue;
-        if (isLunii(si.rootPath()))
-            out << si.rootPath();
-    }
-    return out;
-}
-
-LuniiDevice::LuniiDevice(const QString &mountPoint, QObject *parent) : QObject(parent), m_mount(mountPoint)
+LuniiDevice::LuniiDevice(const QString &mountPoint, QObject *parent) : StoryDevice(mountPoint, parent)
 {
     if (!parseMd())
         return;
@@ -262,16 +229,6 @@ bool LuniiDevice::canExportPlain() const
     return m_hw != HwVersion::V3 || !m_deviceKey.isEmpty();
 }
 
-qint64 LuniiDevice::freeSpace() const
-{
-    return QStorageInfo(m_mount).bytesAvailable();
-}
-
-qint64 LuniiDevice::totalSpace() const
-{
-    return QStorageInfo(m_mount).bytesTotal();
-}
-
 // ---------------------------------------------------------------- liste des histoires (.pi)
 
 static QList<QUuid> readPi(const QString &path)
@@ -308,28 +265,9 @@ void LuniiDevice::readStories()
     info(tr("%1 histoires lues").arg(m_stories.size()));
 }
 
-int LuniiDevice::indexOf(const QUuid &u) const
-{
-    for (int i = 0; i < m_stories.size(); ++i)
-        if (m_stories[i].uuid == u)
-            return i;
-    return -1;
-}
-
 QString LuniiDevice::storyDir(const DeviceStory &s) const
 {
     return QString("%1/%2/%3").arg(m_mount, s.hidden ? CONTENT_HIDDEN : CONTENT, s.shortId());
-}
-
-qint64 LuniiDevice::storySize(const DeviceStory &s) const
-{
-    qint64 total = 0;
-    QDirIterator it(storyDir(s), QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-        it.next();
-        total += it.fileInfo().size();
-    }
-    return total;
 }
 
 static QByteArray storyKeysForward(const QByteArray &, const QByteArray &, const QString &, const QByteArray &);
@@ -564,51 +502,6 @@ bool LuniiDevice::checkV2Bt(const QString &storyPath) const
 }
 
 // ---------------------------------------------------------------- utilitaires
-
-bool LuniiDevice::aborted()
-{
-    if (m_abort.loadRelaxed()) {
-        warn(tr("Opération interrompue"));
-        return true;
-    }
-    return false;
-}
-
-bool LuniiDevice::alreadyLoaded(const QUuid &u)
-{
-    if (indexOf(u) < 0)
-        return false;
-    const QString t = StoryDb::instance().title(u);
-    warn(tr("« %1 » est déjà sur la Lunii").arg(t.isEmpty() ? uuidStr(u) : t));
-    return true;
-}
-
-bool LuniiDevice::writeFile(const QString &path, const QByteArray &data, bool progress)
-{
-    QDir().mkpath(QFileInfo(path).path());
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        error(tr("Écriture impossible : %1 (%2)").arg(path, f.errorString()));
-        return false;
-    }
-    const qint64 block = 256 * 1024;
-    QElapsedTimer t;
-    t.start();
-    for (qint64 done = 0; done < data.size();) {
-        const qint64 n = f.write(data.constData() + done, qMin(block, data.size() - done));
-        if (n <= 0) {
-            error(tr("Écriture impossible : %1 (%2)").arg(path, f.errorString()));
-            return false;
-        }
-        done += n;
-        if (progress) {
-            const double s = qMax<qint64>(t.elapsed(), 1) / 1000.0;
-            emit fileProgress(tr("%1 Ko/s").arg(qint64(done / 1024 / s)), done, data.size());
-        }
-    }
-    f.close();
-    return true;
-}
 
 bool LuniiDevice::cleanStoryDir(const QUuid &u)
 {
@@ -933,16 +826,6 @@ QString LuniiDevice::exportStory(const QUuid &u, const QString &outDir)
     return canExportPlain() ? exportPlain(s, outDir) : exportBackup(s, outDir);
 }
 
-static QStringList storyFiles(const QString &dir)
-{
-    QStringList files;
-    QDirIterator it(dir, QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext())
-        files << it.next();
-    files.sort();
-    return files;
-}
-
 QString LuniiDevice::exportBackup(const DeviceStory &s, const QString &outDir)
 {
     const QString dir = storyDir(s);
@@ -1061,21 +944,6 @@ bool LuniiDevice::setNightMode(const QUuid &u, bool enabled)
         m_stories[i].nightMode = enabled;
     ::sync();
     return ok;
-}
-
-bool LuniiDevice::reorder(const QList<QUuid> &order)
-{
-    if (order.size() != m_stories.size())
-        return false;
-    QList<DeviceStory> next;
-    for (const QUuid &u : order) {
-        const int i = indexOf(u);
-        if (i < 0)
-            return false;
-        next << m_stories[i];
-    }
-    m_stories = next;
-    return writePackIndex();
 }
 
 bool LuniiDevice::validStory(const QString &storyPath)
