@@ -13,13 +13,14 @@ Dérivé de [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3), 
 - Collections (glisser des histoires sur une collection) et étiquettes.
 - Glisser-déposer : de la bibliothèque (ou de Dolphin) vers la Lunii pour envoyer, et de la Lunii vers la bibliothèque pour sauvegarder.
 
-**Lunii** (v1, v2, v3 ; Flam pas encore)
+**Conteuses** (Lunii v1, v2, v3 et Flam)
 - Détection USB des Lunii branchées, même non montées. Montage et éjection par udisksctl.
 - Ordre des histoires par glisser-déposer, masquage, mode nuit par histoire, réglages du mode nuit.
 - Import : STUdio (zip/7z), `.plain.pk`, archives v1/v2 (zip/7z), sauvegardes personnelles v3. Conversion automatique des images et des sons.
 - Export : `.plain.pk` sur v1/v2 (ou v3 avec les clés de l'appareil), sinon sauvegarde chiffrée liée à l'appareil.
 - Récupération des histoires perdues et nettoyage des dossiers orphelins.
-- Comme dans Lunii.QT, l'export des histoires officielles est refusé sur v1/v2.
+- Histoires officielles : exportées uniquement en sauvegarde chiffrée, restaurable sur la même conteuse (jamais déchiffrées).
+- Flam : imports Lunii et Flam (déchiffrés, STUdio, v2), fiche `info` et vignette LIFF, export, masquage, ordre. Les histoires officielles Flam ne sont ni déchiffrées ni transférées. Testé sur de fausses Flam uniquement.
 
 **Éditeur**
 - Graphe de nœuds : scènes (image, son, commandes) et choix (options parcourues avec la molette). Liens OK et Maison tirés à la souris. Un lien scène vers scène crée automatiquement le choix intermédiaire.
@@ -48,6 +49,19 @@ cmake --install ~/.cache/easylunii-build --prefix ~/.local
 
 Le dossier de compilation est hors du disque externe : l'exFAT n'accepte pas les liens symboliques.
 
+### Windows
+
+Compilation croisée depuis Fedora avec MinGW :
+
+```sh
+sudo dnf install mingw64-gcc-c++ mingw64-qt6-qtbase mingw64-qt6-qtmultimedia mingw64-qt6-qtsvg \
+    mingw64-qt6-qtimageformats mingw64-qt6-qttools mingw64-qt6-qttranslations \
+    mingw64-libarchive mingw64-openssl mingw64-nsis
+packaging/windows/build.sh
+```
+
+Le script produit `dist/EasyLunii-<version>-win64.zip` (dossier portable : Qt, DLL, icônes Breeze) et, si `makensis` est présent, un installeur. ffmpeg n'est pas fourni : voir `packaging/windows/LISEZMOI.txt`. Le zip a été vérifié sous Wine : import identique octet par octet à la version Linux, interface fonctionnelle.
+
 ## Organisation
 
 | Dossier | Contenu |
@@ -67,6 +81,6 @@ Données : index et réglages dans `~/.local/share/easylunii` et `~/.config/easy
 
 ## Pas encore fait
 
-- Flam (`device_flam.py` de Lunii.QT).
+- Essai sur une vraie Flam, et sur un vrai Windows.
 - Téléchargement et sauvegarde du firmware (compte Luniistore).
 - Assistant : les thèmes sont créés par tranches (« Histoires 1 à 5 »). Pour un regroupement par sujet, les renommer et les réorganiser dans l'éditeur.
