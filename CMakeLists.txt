@@ -75,6 +75,9 @@ endif()
 
 install(TARGETS easylunii easylunii-cli RUNTIME DESTINATION bin)
 if(NOT WIN32)
-install(FILES res/easylunii.desktop DESTINATION share/applications)
-install(FILES res/easylunii-512.png DESTINATION share/icons/hicolor/512x512/apps RENAME easylunii.png)
+    install(FILES res/easylunii.desktop DESTINATION share/applications)
+    foreach(size 16 24 32 48 64 128 256 512)
+        install(FILES res/icons/easylunii-${size}.png
+                DESTINATION share/icons/hicolor/${size}x${size}/apps RENAME easylunii.png)
+    endforeach()
 endif()

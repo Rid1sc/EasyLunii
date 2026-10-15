@@ -18,12 +18,18 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp "$BUILD/easylunii.exe" "$BUILD/easylunii-cli.exe" "$STAGE/"
 "$SRC/packaging/windows/deploy.sh" "$STAGE"
+"$SRC/packaging/windows/icons.sh" "$STAGE/icons"
 cp "$SRC/LICENSE" "$STAGE/LICENSE.txt"
 cp "$SRC/packaging/windows/LISEZMOI.txt" "$STAGE/"
 
 mkdir -p "$OUT"
 rm -f "$OUT/EasyLunii-$VERSION-win64.zip"
 (cd "$BUILD" && zip -qr9 "$OUT/EasyLunii-$VERSION-win64.zip" EasyLunii)
+if ! command -v makensis >/dev/null; then
+    echo "makensis absent (paquet mingw64-nsis) : installeur non créé"
+    ls -la "$OUT"
+    exit 0
+fi
 makensis -V2 -DVERSION="$VERSION" -DSTAGE="$STAGE" -DOUTFILE="$OUT/EasyLunii-$VERSION-setup.exe" \
     -DICON="$SRC/res/easylunii.ico" "$SRC/packaging/windows/installer.nsi"
 echo "Fichiers créés dans $OUT :"

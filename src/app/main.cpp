@@ -4,7 +4,10 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDir>
+#include <QIcon>
 #include <QPixmapCache>
+#include <QStyleHints>
 #include <QTimer>
 
 int main(int argc, char **argv)
@@ -16,6 +19,19 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(EASYLUNII_VERSION));
     QApplication::setDesktopFileName("easylunii");
     QPixmapCache::setCacheLimit(48 * 1024);   // vignettes affichées (Ko)
+#ifdef Q_OS_WIN
+    // pas de thème d'icônes sous Windows : sous-ensemble de Breeze livré dans icons/
+    const QString icons = QApplication::applicationDirPath() + "/icons";
+    if (QDir(icons).exists()) {
+        QIcon::setThemeSearchPaths({icons});
+        const auto applyTheme = []() {
+            QIcon::setThemeName(QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark
+                                    ? "breeze-dark" : "breeze");
+        };
+        applyTheme();
+        QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, &app, applyTheme);
+    }
+#endif
 
     QCommandLineParser cli;
     cli.addHelpOption();

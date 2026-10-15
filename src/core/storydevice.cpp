@@ -11,6 +11,10 @@
 #include <QFileInfo>
 #include <QStorageInfo>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace lunii {
 
 QString DeviceStory::shortId() const
@@ -74,13 +78,38 @@ QStringList StoryDevice::findDevices()
     return out;
 }
 
+#ifdef Q_OS_WIN
+// QStorageInfo passe par le nom de volume, qui n'existe pas toujours (lecteurs mappés, Wine) :
+// on interroge directement le dossier.
+static bool diskSpace(const QString &path, qint64 *avail, qint64 *total)
+{
+    ULARGE_INTEGER a, t;
+    const std::wstring p = QDir::toNativeSeparators(QDir(path).absolutePath() + '/').toStdWString();
+    if (!GetDiskFreeSpaceExW(p.c_str(), &a, &t, nullptr))
+        return false;
+    *avail = qint64(a.QuadPart);
+    *total = qint64(t.QuadPart);
+    return true;
+}
+#endif
+
 qint64 StoryDevice::freeSpace() const
 {
+#ifdef Q_OS_WIN
+    qint64 avail, total;
+    if (diskSpace(m_mount, &avail, &total))
+        return avail;
+#endif
     return QStorageInfo(m_mount).bytesAvailable();
 }
 
 qint64 StoryDevice::totalSpace() const
 {
+#ifdef Q_OS_WIN
+    qint64 avail, total;
+    if (diskSpace(m_mount, &avail, &total))
+        return total;
+#endif
     return QStorageInfo(m_mount).bytesTotal();
 }
 
