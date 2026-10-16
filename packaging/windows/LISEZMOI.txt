@@ -14,4 +14,6 @@ https://github.com/rhasspy/piper/releases
 Données : bases de titres et jaquettes dans %USERPROFILE%\.lunii-qt (partagées avec Lunii.QT),
 bibliothèque dans %LOCALAPPDATA%\easylunii.
 
-Licence : GPLv3 (voir LICENSE.txt). Dérivé de Lunii.QT (o-daneel) ; format des packs STUdio (marian-m12l).
+Licence : GPLv3 (voir LICENSE.txt). Code source : https://github.com/Rid1sc/EasyLunii
+Dérivé de Lunii.QT (o-daneel, GPLv3) ; format des packs STUdio (marian-m12l).
+Bibliothèques livrées (Qt, libarchive, OpenSSL…) et icônes Breeze : licences dans le dossier « licences ».

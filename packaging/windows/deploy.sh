@@ -39,3 +39,18 @@ while [ -n "$queue" ]; do
     queue=$next
 done
 echo "Déploiement : $(ls "$STAGE"/*.dll | wc -l) DLL copiées"
+
+# licences des bibliothèques livrées (LGPL de Qt, etc.) : dossier du paquet MinGW de chaque DLL
+mkdir -p "$STAGE/licences"
+for f in $(find "$STAGE" -name '*.dll'); do
+    src=$(find "$ROOT/bin" "$PLUGINS" -name "$(basename "$f")" | head -1)
+    pkg=$(rpm -qf --qf '%{NAME}\n' "$src" 2>/dev/null) || continue
+    if [ -d "/usr/share/licenses/$pkg" ]; then
+        cp -rn "/usr/share/licenses/$pkg" "$STAGE/licences/"
+    else   # certains paquets rangent la licence dans la doc
+        for lic in $(rpm -ql "$pkg" | grep -iE '/usr/share/doc/[^/]+/(LICEN[CS]E|COPYING)[^/]*$'); do
+            mkdir -p "$STAGE/licences/$pkg" && cp -n "$lic" "$STAGE/licences/$pkg/"
+        done
+    fi
+done
+echo "Licences : $(ls "$STAGE/licences" | wc -l) paquets"

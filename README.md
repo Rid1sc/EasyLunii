@@ -2,7 +2,9 @@
 
 Gestionnaire d'histoires pour la Lunii, en C++/Qt 6 natif : bibliothèque, transferts vers l'appareil, éditeur de packs façon STUdio.
 
-Dérivé de [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3), dont le cœur a été réécrit en C++ en suivant son code Python comme référence. Format des packs : [STUdio](https://github.com/marian-m12l/studio) (marian-m12l, MPL-2.0). Licence : GPLv3.
+*Story manager for Lunii and Flam storytellers (native C++/Qt 6): library, device transfers, STUdio-style pack editor. French UI. Derived from [Lunii.QT](https://github.com/o-daneel/Lunii.QT), GPL-3.0.*
+
+Dérivé de [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3), dont le cœur a été réécrit en C++ en suivant son code Python comme référence. Licence : GPLv3 (voir [Licence et crédits](#licence-et-crédits)).
 
 ## Fonctions
 
@@ -84,3 +86,22 @@ Données : index et réglages dans `~/.local/share/easylunii` et `~/.config/easy
 - Essai sur une vraie Flam, et sur un vrai Windows.
 - Téléchargement et sauvegarde du firmware (compte Luniistore).
 - Assistant : les thèmes sont créés par tranches (« Histoires 1 à 5 »). Pour un regroupement par sujet, les renommer et les réorganiser dans l'éditeur.
+
+## Licence et crédits
+
+Copyright © 2026 Rid1sc et contributeurs.
+
+EasyLunii est un logiciel libre, distribué sous **GNU GPL version 3** ([LICENSE](LICENSE)) : vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer, à condition de conserver la même licence et de fournir le code source. Pas de « version ultérieure » : Lunii.QT, dont EasyLunii dérive, est publié sous la GPLv3 seule, et un travail dérivé ne peut pas être plus permissif.
+
+**Projets à l'origine d'EasyLunii**
+- [Lunii.QT](https://github.com/o-daneel/Lunii.QT) — o-daneel, GPLv3. Base du projet : accès aux Lunii et Flam, chiffrements, formats d'histoires, conversions, base des histoires non officielles (`res/unofficial.json`) ont été portés de son code Python (v3.1.4).
+- [STUdio](https://github.com/marian-m12l/studio) — marian-m12l, MPL-2.0. Format des packs d'histoires (archive v1, `story.json`) et principe de l'éditeur en graphe. Aucun code repris.
+- Lunii Manager — inspiration pour la bibliothèque (logiciel propriétaire, aucun code repris).
+
+**Composants utilisés**
+- [Qt 6](https://www.qt.io) (LGPLv3), [libarchive](https://libarchive.org) (BSD-2-Clause), [OpenSSL](https://openssl.org) (Apache-2.0), SQLite (domaine public).
+- Version Windows : icônes [Breeze](https://invent.kde.org/frameworks/breeze-icons) de KDE (LGPLv3). Les licences de toutes les bibliothèques livrées sont copiées dans le dossier `licences` du zip.
+- Outils externes facultatifs, non fournis : [FFmpeg](https://ffmpeg.org) (conversions audio), [Piper](https://github.com/rhasspy/piper) (annonces vocales ; chaque voix a sa propre licence).
+
+**Avertissement.** Projet indépendant, sans lien avec Lunii SAS ni avec la Flam ; « Lunii » et « Flam » sont des marques de leurs propriétaires. EasyLunii sert à gérer ses propres histoires et à sauvegarder celles achetées : les histoires officielles ne sont exportées que chiffrées, restaurables sur la conteuse d'origine, et ne sont jamais déchiffrées. Utilisation à vos risques : gardez une sauvegarde de la conteuse avant toute modification.
+
