@@ -1,107 +1,65 @@
 # EasyLunii
 
-Gestionnaire d'histoires pour la Lunii, en C++/Qt 6 natif : bibliothèque, transferts vers l'appareil, éditeur de packs façon STUdio.
+Gestionnaire d'histoires pour les conteuses **Lunii** (v1, v2, v3) et **Flam**, avec bibliothèque, transferts et éditeur de packs. Application native C++/Qt 6 pour Linux et Windows, dérivée de [Lunii.QT](https://github.com/o-daneel/Lunii.QT).
 
-*Story manager for Lunii and Flam storytellers (native C++/Qt 6): library, device transfers, STUdio-style pack editor. French UI. Derived from [Lunii.QT](https://github.com/o-daneel/Lunii.QT), GPL-3.0.*
+**[Télécharger pour Windows](https://github.com/Rid1sc/EasyLunii/releases/latest)** · [English below](#english)
 
-Dérivé de [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3), dont le cœur a été réécrit en C++ en suivant son code Python comme référence. Licence : GPLv3 (voir [Licence et crédits](#licence-et-crédits)).
+## Fonctionnalités
 
-## Fonctions
+- **Bibliothèque** : dossiers surveillés (zip, 7z, pk), jaquettes, recherche, filtres par âge, collections et étiquettes.
+- **Glisser-déposer** : de la bibliothèque vers la conteuse pour envoyer, et dans l'autre sens pour sauvegarder.
+- **Conteuse** : détection automatique, import (STUdio, `.plain.pk`, archives v1/v2/v3) avec conversion des images et des sons, ordre, masquage, mode nuit, récupération des histoires perdues.
+- **Histoires officielles** : sauvegarde chiffrée, restaurable sur la conteuse d'origine. Elles ne sont jamais déchiffrées.
+- **Éditeur façon STUdio** : graphe de scènes et de choix, annuler/rétablir, vérification du pack, simulateur de conteuse avec lecture de test.
+- **Assistant** : transforme des fichiers audio en pack à menus et thèmes, avec annonces vocales générées par [Piper](https://github.com/rhasspy/piper) (synthèse vocale neuronale locale, installée séparément).
 
-**Bibliothèque**
-- Plusieurs dossiers surveillés (zip, 7z, pk), indexés dans SQLite, sans déplacer les fichiers. Seuls les fichiers modifiés sont relus.
-- Grille de jaquettes ou liste. Jaquettes : base officielle Lunii, vignette STUdio ou premier écran du pack. Elles sont mises en cache.
-- Recherche insensible aux accents (titre, auteur, description, étiquettes), filtre d'âge, tri (titre, âge, ajout, taille, durée).
-- Collections (glisser des histoires sur une collection) et étiquettes.
-- Glisser-déposer : de la bibliothèque (ou de Dolphin) vers la Lunii pour envoyer, et de la Lunii vers la bibliothèque pour sauvegarder.
+## Technologies
 
-**Conteuses** (Lunii v1, v2, v3 et Flam)
-- Détection USB des Lunii branchées, même non montées. Montage et éjection par udisksctl.
-- Ordre des histoires par glisser-déposer, masquage, mode nuit par histoire, réglages du mode nuit.
-- Import : STUdio (zip/7z), `.plain.pk`, archives v1/v2 (zip/7z), sauvegardes personnelles v3. Conversion automatique des images et des sons.
-- Export : `.plain.pk` sur v1/v2 (ou v3 avec les clés de l'appareil), sinon sauvegarde chiffrée liée à l'appareil.
-- Récupération des histoires perdues et nettoyage des dossiers orphelins.
-- Histoires officielles : exportées uniquement en sauvegarde chiffrée, restaurable sur la même conteuse (jamais déchiffrées).
-- Flam : imports Lunii et Flam (déchiffrés, STUdio, v2), fiche `info` et vignette LIFF, export, masquage, ordre. Les histoires officielles Flam ne sont ni déchiffrées ni transférées. Testé sur de fausses Flam uniquement.
+C++20, Qt 6 Widgets et Multimedia, libarchive (zip/7z en flux), OpenSSL (AES), SQLite (index de la bibliothèque), FFmpeg (conversions audio), Piper (voix), CMake. Version Windows compilée avec MinGW.
 
-**Éditeur**
-- Graphe de nœuds : scènes (image, son, commandes) et choix (options parcourues avec la molette). Liens OK et Maison tirés à la souris. Un lien scène vers scène crée automatiquement le choix intermédiaire.
-- Inspecteur, annuler/rétablir, rangement automatique, vérification du pack.
-- Images recadrées en 320×240, sons convertis en MP3 mono 44,1 kHz.
-- Simulateur de Lunii (molette, OK, maison, pause, lecture automatique).
-- Assistant : des fichiers audio, ou des zips/dossiers de parties à réunir, donnent un pack à menus, avec thèmes et annonces vocales Piper.
-- Envoi direct sur la Lunii.
-
-## Sobriété
-
-- Qt Widgets, sans navigateur embarqué. Environ 125 Mo de mémoire résidente avec une bibliothèque de 273 histoires, ou avec un pack de 150 Mo ouvert dans l'éditeur. Les sons restent sur disque.
-- Lectures d'archives en flux (libarchive), analyse et transferts dans des threads de travail.
-- La pile multimédia n'est chargée qu'à la première écoute.
-
-## Compilation
-
-Dépendances (Fedora) : `qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qtsvg-devel qt6-qttools-devel libarchive-devel openssl-devel cmake ninja-build gcc-c++`.
-Au moment de l'exécution : `ffmpeg` (conversions audio), `udisks2` (montage), et, facultatif, Piper dans `~/.local/share/piper` pour les annonces vocales.
-
-```sh
-cmake -S . -B ~/.cache/easylunii-build -G Ninja
-cmake --build ~/.cache/easylunii-build
-cmake --install ~/.cache/easylunii-build --prefix ~/.local
-```
-
-Le dossier de compilation est hors du disque externe : l'exFAT n'accepte pas les liens symboliques.
-
-### Windows
-
-Compilation croisée depuis Fedora avec MinGW :
-
-```sh
-sudo dnf install mingw64-gcc-c++ mingw64-qt6-qtbase mingw64-qt6-qtmultimedia mingw64-qt6-qtsvg \
-    mingw64-qt6-qtimageformats mingw64-qt6-qttools mingw64-qt6-qttranslations \
-    mingw64-libarchive mingw64-openssl mingw64-nsis
-packaging/windows/build.sh
-```
-
-Le script produit `dist/EasyLunii-<version>-win64.zip` (dossier portable : Qt, DLL, icônes Breeze) et, si `makensis` est présent, un installeur. ffmpeg n'est pas fourni : voir `packaging/windows/LISEZMOI.txt`. Le zip a été vérifié sous Wine : import identique octet par octet à la version Linux, interface fonctionnelle.
-
-## Organisation
-
-| Dossier | Contenu |
-|---|---|
-| `src/core` | Accès aux Lunii, chiffrement XXTEA/AES, formats (STUdio, plain, v2, v3), conversions, bases de titres. Sans interface. |
-| `src/app` | Fenêtre, bibliothèque (index, modèle, page), panneau Lunii, file de tâches, éditeur (`editor/` : graphe, simulateur, assistant). |
-| `src/cli` | `easylunii-cli` : accès au cœur en ligne de commande (tests, scripts). |
-| `tests` | `easylunii-uitest` : tests d'interface sur une fausse Lunii. |
-
-Données : index et réglages dans `~/.local/share/easylunii` et `~/.config/easylunii`, vignettes dans `~/.cache/easylunii`. Bases de titres et cache des jaquettes partagés avec Lunii.QT dans `~/.lunii-qt`.
-
-## Tests
-
-- **Cœur, comparé à Lunii.QT v3.1.4.** Les sorties sont identiques octet par octet pour XXTEA et AES (7 tailles), pour les imports STUdio, zip v2 et 7z sur une fausse v3 et une fausse v2, et pour l'export `.plain.pk` et son réimport. Seule différence : la mise en forme JSON de `_metadata.json`. Les fausses Lunii sont construites avec les `.md` de vrais appareils.
-- **Interface.** `easylunii-uitest <dossier .md> <pack.zip> [zips…]` couvre le dépôt sur la Lunii, le refus des doublons, l'export, le masquage, la suppression, le glisser de la Lunii vers la bibliothèque et la réindexation, le dépôt sur une collection, l'éditeur (ajout, lien, annulation, suppression, enregistrement) et l'assistant.
-- **Enregistrement des packs.** `easylunii-cli studio-resave` relit puis réenregistre un pack : `story.json`, les ressources et la vignette sont identiques.
-
-## Pas encore fait
-
-- Essai sur une vraie Flam, et sur un vrai Windows.
-- Téléchargement et sauvegarde du firmware (compte Luniistore).
-- Assistant : les thèmes sont créés par tranches (« Histoires 1 à 5 »). Pour un regroupement par sujet, les renommer et les réorganiser dans l'éditeur.
+Compilation et tests : [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
 
 ## Licence et crédits
 
-Copyright © 2026 Rid1sc et contributeurs.
+GPL-3.0 ([LICENSE](LICENSE)), © 2026 Rid1sc et contributeurs. C'est la licence imposée par Lunii.QT.
 
-EasyLunii est un logiciel libre, distribué sous **GNU GPL version 3** ([LICENSE](LICENSE)) : vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer, à condition de conserver la même licence et de fournir le code source. Pas de « version ultérieure » : Lunii.QT, dont EasyLunii dérive, est publié sous la GPLv3 seule, et un travail dérivé ne peut pas être plus permissif.
+- [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3) : base du projet. Le cœur (accès aux conteuses, chiffrements, formats) est porté de son code Python.
+- [STUdio](https://github.com/marian-m12l/studio) (marian-m12l, MPL-2.0) : format des packs et principe de l'éditeur.
+- Lunii Manager : inspiration pour la bibliothèque.
+- Qt (LGPLv3), libarchive (BSD), OpenSSL (Apache-2.0), icônes Breeze de KDE (LGPLv3, version Windows).
 
-**Projets à l'origine d'EasyLunii**
-- [Lunii.QT](https://github.com/o-daneel/Lunii.QT) — o-daneel, GPLv3. Base du projet : accès aux Lunii et Flam, chiffrements, formats d'histoires, conversions, base des histoires non officielles (`res/unofficial.json`) ont été portés de son code Python (v3.1.4).
-- [STUdio](https://github.com/marian-m12l/studio) — marian-m12l, MPL-2.0. Format des packs d'histoires (archive v1, `story.json`) et principe de l'éditeur en graphe. Aucun code repris.
-- Lunii Manager — inspiration pour la bibliothèque (logiciel propriétaire, aucun code repris).
+Projet indépendant, sans lien avec Lunii SAS ni avec la Flam. Gardez une sauvegarde de votre conteuse avant de la modifier.
 
-**Composants utilisés**
-- [Qt 6](https://www.qt.io) (LGPLv3), [libarchive](https://libarchive.org) (BSD-2-Clause), [OpenSSL](https://openssl.org) (Apache-2.0), SQLite (domaine public).
-- Version Windows : icônes [Breeze](https://invent.kde.org/frameworks/breeze-icons) de KDE (LGPLv3). Les licences de toutes les bibliothèques livrées sont copiées dans le dossier `licences` du zip.
-- Outils externes facultatifs, non fournis : [FFmpeg](https://ffmpeg.org) (conversions audio), [Piper](https://github.com/rhasspy/piper) (annonces vocales ; chaque voix a sa propre licence).
+---
 
-**Avertissement.** Projet indépendant, sans lien avec Lunii SAS ni avec la Flam ; « Lunii » et « Flam » sont des marques de leurs propriétaires. EasyLunii sert à gérer ses propres histoires et à sauvegarder celles achetées : les histoires officielles ne sont exportées que chiffrées, restaurables sur la conteuse d'origine, et ne sont jamais déchiffrées. Utilisation à vos risques : gardez une sauvegarde de la conteuse avant toute modification.
+## English
 
+Story manager for **Lunii** (v1, v2, v3) and **Flam** storytellers, with a library, device transfers and a pack editor. Native C++/Qt 6 app for Linux and Windows, derived from [Lunii.QT](https://github.com/o-daneel/Lunii.QT). The interface is in French.
+
+**[Download for Windows](https://github.com/Rid1sc/EasyLunii/releases/latest)**
+
+### Features
+
+- **Library**: watched folders (zip, 7z, pk), covers, search, age filters, collections and tags.
+- **Drag and drop**: from the library to the device to upload, and back to back up.
+- **Device**: automatic detection, import (STUdio, `.plain.pk`, v1/v2/v3 archives) with image and audio conversion, ordering, hiding, night mode, recovery of lost stories.
+- **Official stories**: encrypted backup that can be restored on the original device. They are never decrypted.
+- **STUdio-like editor**: graph of scenes and choices, undo/redo, pack validation, device simulator with test playback.
+- **Wizard**: turns audio files into a pack with menus and themes, with voice announcements generated by [Piper](https://github.com/rhasspy/piper) (local neural text-to-speech, installed separately).
+
+### Technologies
+
+C++20, Qt 6 Widgets and Multimedia, libarchive (streamed zip/7z), OpenSSL (AES), SQLite (library index), FFmpeg (audio conversion), Piper (voices), CMake. Windows build cross-compiled with MinGW.
+
+Build and tests: [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (in French).
+
+### License and credits
+
+GPL-3.0 ([LICENSE](LICENSE)), © 2026 Rid1sc and contributors. Lunii.QT requires this license.
+
+- [Lunii.QT](https://github.com/o-daneel/Lunii.QT) (o-daneel, GPLv3): the project's foundation. The core (device access, encryption, formats) is ported from its Python code.
+- [STUdio](https://github.com/marian-m12l/studio) (marian-m12l, MPL-2.0): pack format and editor concept.
+- Lunii Manager: inspiration for the library.
+- Qt (LGPLv3), libarchive (BSD), OpenSSL (Apache-2.0), KDE Breeze icons (LGPLv3, Windows build).
+
+Independent project, not affiliated with Lunii SAS or Flam. Keep a backup of your device before modifying it.
