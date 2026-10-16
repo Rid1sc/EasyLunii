@@ -7,7 +7,9 @@
 #include "app/library.h"
 #include "app/librarymodel.h"
 #include "app/librarypage.h"
+#include "app/editor/audiotransport.h"
 #include "app/editor/graphitems.h"
+#include "app/editor/simulator.h"
 #include "app/editor/wizard.h"
 #include "core/device.h"
 #include "core/flamdevice.h"
@@ -22,6 +24,7 @@
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QFile>
+#include <QMediaPlayer>
 #include <QListView>
 #include <QMimeData>
 #include <QStandardPaths>
@@ -243,6 +246,50 @@ static void run()
     ed.m_undo.setClean();
 }
 
+// Barre de lecture de test : inspecteur (son le plus long du pack) puis simulateur
+static void transport()
+{
+    JobQueue jobs;
+    EditorPage ed(&jobs);
+    CHECK(ed.openPack(g_pack));
+    QString longest;
+    qint64 best = -1;
+    for (const auto &st : ed.m_pack.stages)
+        if (!st.audio.isEmpty() && ed.m_pack.assetSize(st.audio) > best) {
+            best = ed.m_pack.assetSize(st.audio);
+            longest = st.audio;
+        }
+    CHECK(!longest.isEmpty());
+    ed.playAsset(longest);
+    QMediaPlayer *pl = ed.m_player;
+    WAIT_FOR(pl && pl->duration() > 30000 && pl->playbackState() == QMediaPlayer::PlayingState, 10000);
+    if (!pl)
+        return;
+    ed.m_transport->seekBy(20000);
+    WAIT_FOR(pl->position() >= 19000, 5000);
+    ed.m_transport->seekBy(-10000);
+    WAIT_FOR(pl->position() >= 9000 && pl->position() < 15000, 5000);
+    ed.m_transport->togglePlay();
+    WAIT_FOR(pl->playbackState() == QMediaPlayer::PausedState, 3000);
+    const qint64 at = pl->position();
+    QTest::qWait(500);
+    CHECK(qAbs(pl->position() - at) < 100);   // en pause, la position ne bouge plus
+    ed.m_transport->togglePlay();
+    WAIT_FOR(pl->playbackState() == QMediaPlayer::PlayingState, 3000);
+    ed.stopAudio();
+
+    Simulator sim(ed.m_pack);
+    auto *tr = sim.findChild<AudioTransport *>();
+    auto *sp = sim.findChild<QMediaPlayer *>();
+    CHECK(tr && sp);
+    if (!tr || !sp)
+        return;
+    WAIT_FOR(sp->duration() > 0, 10000);
+    QTest::keyClick(&sim, Qt::Key_Right, Qt::ControlModifier);
+    WAIT_FOR(sp->position() >= qMin<qint64>(9000, sp->duration() - 1500) || sp->mediaStatus() == QMediaPlayer::EndOfMedia, 5000);
+    qInfo("lecture de test : %lld s, simulateur %lld ms / %lld ms", pl->duration() / 1000, sp->position(), sp->duration());
+}
+
 // Assistant : zips d'histoires (parties à réunir) -> pack à thèmes, puis import sur une fausse Lunii
 static void wizard(const QStringList &zips)
 {
@@ -291,6 +338,7 @@ int main(int argc, char **argv)
     testDevicePanel();
     testLibraryDropFromDevice();
     EditorPageTest::run();
+    EditorPageTest::transport();
     if (argc > 3)
         EditorPageTest::wizard(QCoreApplication::arguments().mid(3));
     qInfo("%s : %d échec(s)", g_failures ? "ÉCHEC" : "SUCCÈS", g_failures);

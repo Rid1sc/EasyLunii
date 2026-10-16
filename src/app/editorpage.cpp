@@ -1,5 +1,6 @@
 #include "app/editorpage.h"
 
+#include "app/editor/audiotransport.h"
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
 #include "app/editor/wizard.h"
@@ -433,6 +434,7 @@ void EditorPage::buildUi()
     auto *audClear = new QPushButton(QIcon::fromTheme("edit-clear"), tr("Retirer"));
     for (auto *b : {audPlay, audStop, audPick, audClear})
         audBtns->addWidget(b);
+    m_transport = new AudioTransport;
     auto *ctrlBox = new QGroupBox(tr("Commandes actives sur ce nœud"));
     auto *cl = new QVBoxLayout(ctrlBox);
     const QString ctrlNames[5] = {tr("Molette (passer d'un choix à l'autre)"), tr("Bouton OK"), tr("Bouton maison"),
@@ -458,6 +460,7 @@ void EditorPage::buildUi()
     sf->addRow(QString(), imgBtns);
     sf->addRow(tr("Son :"), m_stageAudio);
     sf->addRow(QString(), audBtns);
+    sf->addRow(QString(), m_transport);
     sf->addRow(ctrlBox);
     sf->addRow(new QLabel(tr("<b>Après OK</b> (ou fin du son en lecture auto)")));
     sf->addRow(tr("Vers :"), m_okAction);
@@ -793,6 +796,7 @@ QMediaPlayer *EditorPage::player()
         m_player = new QMediaPlayer(this);
         m_audioOut = new QAudioOutput(this);
         m_player->setAudioOutput(m_audioOut);
+        m_transport->setPlayer(m_player);
     }
     return m_player;
 }

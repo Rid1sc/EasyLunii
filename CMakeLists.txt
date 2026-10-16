@@ -51,6 +51,7 @@ add_library(luniiapp STATIC
     src/app/devicepanel.cpp
     src/app/editorpage.cpp
     src/app/editor/graphitems.cpp
+    src/app/editor/audiotransport.cpp
     src/app/editor/simulator.cpp
     src/app/editor/wizard.cpp
 )

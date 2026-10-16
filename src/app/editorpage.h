@@ -19,6 +19,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class AudioTransport;
 class QMediaPlayer;
 class QPlainTextEdit;
 class QPushButton;
@@ -147,4 +148,5 @@ private:
     QMediaPlayer *m_player;
     QAudioOutput *m_audioOut;
     QBuffer *m_audioBuf = nullptr;
+    AudioTransport *m_transport;
 };

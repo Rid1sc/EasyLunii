@@ -5,6 +5,7 @@
 
 #include <QDialog>
 
+class AudioTransport;
 class QAudioOutput;
 class QBuffer;
 class QLabel;
@@ -39,4 +40,5 @@ private:
     QMediaPlayer *m_player;
     QAudioOutput *m_out;
     QBuffer *m_buf = nullptr;
+    AudioTransport *m_transport;
 };

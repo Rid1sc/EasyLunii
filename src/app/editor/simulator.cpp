@@ -1,5 +1,7 @@
 #include "app/editor/simulator.h"
 
+#include "app/editor/audiotransport.h"
+
 #include <QAudioOutput>
 #include <QBuffer>
 #include <QHBoxLayout>
@@ -40,7 +42,11 @@ Simulator::Simulator(const lunii::StudioPack &pack, QWidget *parent) : QDialog(p
         row->addWidget(b);
     }
     lay->addLayout(row);
-    auto *hint = new QLabel(tr("Clavier : ← → molette, Entrée OK, Échap ou Retour arrière maison, Espace pause"), this);
+    // contrôle de test, hors commandes de la Lunii : se déplacer dans le son en cours
+    m_transport = new AudioTransport(this);
+    lay->addWidget(m_transport);
+    auto *hint = new QLabel(tr("Clavier : ← → molette, Entrée OK, Échap ou Retour arrière maison, Espace pause, "
+                               "Ctrl+← Ctrl+→ reculer/avancer de 10 s"), this);
     hint->setStyleSheet("color: palette(placeholder-text);");
     hint->setAlignment(Qt::AlignCenter);
     lay->addWidget(hint);
@@ -48,6 +54,7 @@ Simulator::Simulator(const lunii::StudioPack &pack, QWidget *parent) : QDialog(p
     m_player = new QMediaPlayer(this);
     m_out = new QAudioOutput(this);
     m_player->setAudioOutput(m_out);
+    m_transport->setPlayer(m_player);
     connect(m_player, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus s) {
         if (s == QMediaPlayer::EndOfMedia && m_stage >= 0 && m_pack.stages[m_stage].ctrl.autoplay)
             QTimer::singleShot(0, this, [this]() { follow(m_pack.stages[m_stage].ok); });
@@ -182,8 +189,18 @@ void Simulator::updateButtons()
 void Simulator::keyPressEvent(QKeyEvent *e)
 {
     switch (e->key()) {
-    case Qt::Key_Left: wheel(-1); break;
-    case Qt::Key_Right: wheel(1); break;
+    case Qt::Key_Left:
+        if (e->modifiers() & Qt::ControlModifier)
+            m_transport->seekBy(-10000);
+        else
+            wheel(-1);
+        break;
+    case Qt::Key_Right:
+        if (e->modifiers() & Qt::ControlModifier)
+            m_transport->seekBy(10000);
+        else
+            wheel(1);
+        break;
     case Qt::Key_Return:
     case Qt::Key_Enter: ok(); break;
     case Qt::Key_Backspace: home(); break;
