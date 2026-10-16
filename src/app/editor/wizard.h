@@ -7,6 +7,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QLabel;
 class QLineEdit;
 class QSpinBox;
 class QTableWidget;
@@ -23,10 +24,12 @@ public:
         QString title;
         QStringList parts;   // fichiers audio, dans l'ordre
         QString image;       // image choisie (sinon jaquette intégrée ou carte de titre)
+        QString announce;    // enregistrement du titre (sinon « titre.* » du dossier/zip, puis Piper)
     };
 
 private:
     void addFiles();
+    void addAudioFiles(QStringList files);
     void addContainers();
     void removeSelected();
     void moveSelected(int d);
@@ -40,6 +43,8 @@ private:
     QCheckBox *m_tts;
     QComboBox *m_voice;
     QSpinBox *m_speaker;
+    QString m_coverAnnounce;   // enregistrement de l'accueil du pack
+    QLabel *m_coverLabel;
     lunii::StudioPack m_result;
     QString m_spillDir;
 };

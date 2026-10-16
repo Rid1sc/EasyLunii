@@ -22,6 +22,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QProcess>
@@ -41,6 +42,35 @@ using lunii::StageNode;
 using lunii::StudioPack;
 
 static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "flac", "opus", "aac"};
+static const QString AUDIO_FILTER = QStringLiteral("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.flac *.opus *.aac)");
+
+// Enregistrement d'annonce : « titre.mp3 », « Annonce.m4a »… dans le dossier ou le zip d'une histoire
+static bool isAnnounceName(const QString &file)
+{
+    const QString base = QFileInfo(file).completeBaseName().toLower();
+    return base == QLatin1String("titre") || base == QLatin1String("annonce");
+}
+
+// Annonce posée dans le dossier d'une histoire (vide pour un fichier ou un zip)
+static QString dirAnnounce(const QString &dir)
+{
+    if (!QFileInfo(dir).isDir())
+        return {};
+    for (const QFileInfo &f : QDir(dir).entryInfoList(QDir::Files, QDir::Name))
+        if (isAnnounceName(f.fileName()) && AUDIO_EXT.contains(f.suffix().toLower()))
+            return f.absoluteFilePath();
+    return {};
+}
+
+// Fichier isolé : « Mon histoire.titre.mp3 » accompagne « Mon histoire.mp3 »
+static QString announceStem(const QString &file)
+{
+    const QString base = QFileInfo(file).completeBaseName();
+    for (const char *suffix : {".titre", ".annonce"})
+        if (base.endsWith(QLatin1String(suffix), Qt::CaseInsensitive))
+            return base.left(base.size() - int(qstrlen(suffix)));
+    return {};
+}
 
 // Piper : installation Linux de cette machine (venv), ou piper(.exe) à côté du programme / dans le PATH
 static QString piperDir()
@@ -91,7 +121,9 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     auto *lay = new QVBoxLayout(this);
     auto *intro = new QLabel(tr("Chaque ligne devient une histoire. Un zip ou un dossier = une histoire en plusieurs parties, "
                                 "réunies dans l'ordre des noms. Le pack créé : couverture → choix (thèmes si besoin) → "
-                                "titre de l'histoire → histoire, avec retour au menu à la fin."),
+                                "titre de l'histoire → histoire, avec retour au menu à la fin. Pour annoncer un titre avec "
+                                "votre voix, placez un fichier « titre.mp3 » dans le dossier de l'histoire, ou utilisez "
+                                "« Annonce… »."),
                              this);
     intro->setWordWrap(true);
     lay->addWidget(intro);
@@ -100,9 +132,11 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     form->addRow(tr("Titre du pack :"), m_title);
     lay->addLayout(form);
 
-    m_table = new QTableWidget(0, 3, this);
-    m_table->setHorizontalHeaderLabels({tr("Titre (modifiable)"), tr("Parties"), tr("Image")});
+    m_table = new QTableWidget(0, 4, this);
+    m_table->setHorizontalHeaderLabels({tr("Titre (modifiable)"), tr("Parties"), tr("Image"), tr("Annonce")});
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    for (int c = 1; c < 4; ++c)
+        m_table->horizontalHeader()->setSectionResizeMode(c, QHeaderView::ResizeToContents);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     lay->addWidget(m_table, 1);
     connect(m_table, &QTableWidget::itemChanged, this, [this](QTableWidgetItem *it) {
@@ -114,10 +148,13 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     auto *addF = new QPushButton(QIcon::fromTheme("list-add"), tr("Fichiers audio…"), this);
     auto *addZ = new QPushButton(QIcon::fromTheme("archive-insert"), tr("Zips ou dossiers…"), this);
     auto *img = new QPushButton(QIcon::fromTheme("insert-image"), tr("Image…"), this);
+    auto *ann = new QPushButton(QIcon::fromTheme("audio-input-microphone"), tr("Annonce…"), this);
+    ann->setToolTip(tr("Enregistrement qui annonce le titre de l'histoire sélectionnée (remplace Piper). "
+                       "Automatique pour un fichier « titre » ou « annonce » dans le dossier ou le zip de l'histoire."));
     auto *up = new QPushButton(QIcon::fromTheme("go-up"), QString(), this);
     auto *down = new QPushButton(QIcon::fromTheme("go-down"), QString(), this);
     auto *rem = new QPushButton(QIcon::fromTheme("list-remove"), tr("Retirer"), this);
-    for (auto *b : {addF, addZ, img, up, down, rem})
+    for (auto *b : {addF, addZ, img, ann, up, down, rem})
         btns->addWidget(b);
     btns->addStretch();
     lay->addLayout(btns);
@@ -149,6 +186,26 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     voiceRow->addWidget(m_voice, 1);
     voiceRow->addWidget(m_speaker);
     opts->addRow(tr("Voix :"), voiceRow);
+    auto *coverRow = new QHBoxLayout;
+    m_coverLabel = new QLabel(this);
+    auto *coverPick = new QPushButton(QIcon::fromTheme("audio-input-microphone"), tr("Enregistrement…"), this);
+    auto *coverClear = new QPushButton(QIcon::fromTheme("edit-clear"), QString(), this);
+    coverClear->setToolTip(tr("Revenir à l'annonce de Piper"));
+    coverRow->addWidget(m_coverLabel, 1);
+    coverRow->addWidget(coverPick);
+    coverRow->addWidget(coverClear);
+    opts->addRow(tr("Accueil du pack :"), coverRow);
+    connect(coverPick, &QPushButton::clicked, this, [this]() {
+        const QString f = QFileDialog::getOpenFileName(this, tr("Enregistrement d'accueil du pack"), {}, AUDIO_FILTER);
+        if (!f.isEmpty()) {
+            m_coverAnnounce = f;
+            refresh();
+        }
+    });
+    connect(coverClear, &QPushButton::clicked, this, [this]() {
+        m_coverAnnounce.clear();
+        refresh();
+    });
     lay->addLayout(opts);
 
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -161,6 +218,25 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     connect(rem, &QPushButton::clicked, this, &PackWizard::removeSelected);
     connect(up, &QPushButton::clicked, this, [this]() { moveSelected(-1); });
     connect(down, &QPushButton::clicked, this, [this]() { moveSelected(1); });
+    connect(m_tts, &QCheckBox::toggled, this, &PackWizard::refresh);
+    connect(ann, &QPushButton::clicked, this, [this, ann]() {
+        const int r = m_table->currentRow();
+        if (r < 0)
+            return;
+        QMenu menu(this);
+        menu.addAction(QIcon::fromTheme("document-open"), tr("Choisir un enregistrement…"), this, [this, r]() {
+            const QString f = QFileDialog::getOpenFileName(this, tr("Annonce de « %1 »").arg(m_stories[r].title), {}, AUDIO_FILTER);
+            if (!f.isEmpty()) {
+                m_stories[r].announce = f;
+                refresh();
+            }
+        });
+        menu.addAction(QIcon::fromTheme("edit-clear"), tr("Retirer l'enregistrement"), this, [this, r]() {
+            m_stories[r].announce.clear();
+            refresh();
+        })->setEnabled(!m_stories[r].announce.isEmpty());
+        menu.exec(ann->mapToGlobal(QPoint(0, ann->height())));
+    });
     connect(img, &QPushButton::clicked, this, [this]() {
         const int r = m_table->currentRow();
         if (r < 0)
@@ -175,11 +251,36 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
 
 void PackWizard::addFiles()
 {
-    QStringList files = QFileDialog::getOpenFileNames(this, tr("Fichiers audio (une histoire chacun)"), {},
-                                                      tr("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.flac *.opus *.aac)"));
+    QStringList files = QFileDialog::getOpenFileNames(this, tr("Fichiers audio (une histoire chacun)"), {}, AUDIO_FILTER);
+    addAudioFiles(files);
+}
+
+void PackWizard::addAudioFiles(QStringList files)
+{
     naturalSort(files);
-    for (const QString &f : files)
-        m_stories << StoryInput{cleanTitle(QFileInfo(f).completeBaseName()), {f}, {}};
+    // « X.titre.mp3 » est l'annonce de « X.mp3 » (choisi en même temps ou posé à côté)
+    QMap<QString, QString> announces;   // chemin sans extension -> annonce
+    QStringList stories;
+    for (const QString &f : files) {
+        const QString stem = announceStem(f);
+        if (stem.isEmpty())
+            stories << f;
+        else
+            announces.insert(QFileInfo(f).absolutePath() + "/" + stem, f);
+    }
+    for (const QString &f : stories) {
+        const QFileInfo fi(f);
+        const QString key = fi.absolutePath() + "/" + fi.completeBaseName();
+        QString announce = announces.take(key);
+        if (announce.isEmpty())
+            for (const QString &ext : AUDIO_EXT)
+                for (const char *suffix : {".titre.", ".annonce."})
+                    if (announce.isEmpty() && QFileInfo::exists(key + suffix + ext))
+                        announce = key + suffix + ext;
+        m_stories << StoryInput{cleanTitle(fi.completeBaseName()), {f}, {}, announce};
+    }
+    for (const QString &orphan : std::as_const(announces))   // annonce sans histoire : traitée comme une histoire
+        m_stories << StoryInput{cleanTitle(QFileInfo(orphan).completeBaseName()), {orphan}, {}, {}};
     refresh();
 }
 
@@ -206,7 +307,7 @@ void PackWizard::addContainers()
     }
     naturalSort(containers);
     for (const QString &c : containers)
-        m_stories << StoryInput{cleanTitle(QFileInfo(c).completeBaseName()), {c}, {}};
+        m_stories << StoryInput{cleanTitle(QFileInfo(c).completeBaseName()), {c}, {}, {}};
     refresh();
 }
 
@@ -240,11 +341,23 @@ void PackWizard::refresh()
         auto *p = new QTableWidgetItem(src);
         p->setFlags(p->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(i, 1, p);
-        auto *im = new QTableWidgetItem(s.image.isEmpty() ? tr("jaquette intégrée ou titre") : QFileInfo(s.image).fileName());
+        auto *im = new QTableWidgetItem(s.image.isEmpty() ? tr("auto") : QFileInfo(s.image).fileName());
+        im->setToolTip(s.image.isEmpty() ? tr("Jaquette intégrée au premier fichier, sinon carte avec le titre") : s.image);
         im->setFlags(im->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(i, 2, im);
+        const QString found = s.announce.isEmpty() && s.parts.size() == 1 ? dirAnnounce(s.parts.first()) : s.announce;
+        auto *an = new QTableWidgetItem(!found.isEmpty() ? QFileInfo(found).fileName()
+                                        : m_tts->isChecked() ? tr("Piper") : tr("aucune"));
+        an->setToolTip(!found.isEmpty() ? found
+                       : tr("Fichier « titre » ou « annonce » du zip s'il y en a un, sinon %1")
+                             .arg(m_tts->isChecked() ? tr("voix Piper") : tr("pas d'annonce")));
+        an->setFlags(an->flags() & ~Qt::ItemIsEditable);
+        m_table->setItem(i, 3, an);
     }
     m_table->blockSignals(false);
+    m_coverLabel->setText(!m_coverAnnounce.isEmpty() ? QFileInfo(m_coverAnnounce).fileName()
+                          : m_tts->isChecked()      ? tr("annonce Piper (titre du pack et consigne)")
+                                                    : tr("aucune"));
 }
 
 // ------------------------------------------------------------------ génération
@@ -284,7 +397,7 @@ struct Gen {
     }
 
     // parties d'une histoire : fichiers audio d'un zip ou d'un dossier, triés naturellement
-    QStringList expand(const QString &src, int n)
+    QStringList expand(const QString &src, int n, QString *announce = nullptr)
     {
         const QFileInfo fi(src);
         QStringList parts;
@@ -292,8 +405,12 @@ struct Gen {
             QDirIterator it(src, QDir::Files, QDirIterator::Subdirectories);
             while (it.hasNext()) {
                 const QString f = it.next();
-                if (AUDIO_EXT.contains(QFileInfo(f).suffix().toLower()))
+                if (!AUDIO_EXT.contains(QFileInfo(f).suffix().toLower()))
+                    continue;
+                if (!isAnnounceName(f))
                     parts << f;
+                else if (announce && announce->isEmpty())
+                    *announce = f;   // utilisée si l'histoire n'a pas déjà son annonce
             }
         } else if (fi.suffix().toLower() == "zip") {
             const QString dir = tmp.path() + QString("/src%1").arg(n);
@@ -306,7 +423,10 @@ struct Gen {
                 QFile f(out);
                 if (f.open(QIODevice::WriteOnly))
                     f.write(d);
-                parts << out;
+                if (isAnnounceName(out) && announce && announce->isEmpty())
+                    *announce = out;
+                else
+                    parts << out;
                 return true;
             });
         } else {
@@ -316,19 +436,44 @@ struct Gen {
         return parts;
     }
 
+    // concat par filtre : chaque partie est ramenée en mono 44,1 kHz avant d'être mise bout à bout
+    // (le démultiplexeur concat suppose des parties au même format, ce qui n'est pas toujours le cas)
     QByteArray mergeAudio(const QStringList &parts)
     {
-        const QString list = tmp.path() + "/concat.txt";
-        QFile f(list);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            return {};
-        for (QString p : parts)
-            f.write("file '" + p.replace("'", "'\\''").toUtf8() + "'\n");
-        f.close();
-        return run(lunii::ffmpegPath(), {"-v", "error", "-f", "concat", "-safe", "0", "-i", list, "-map", "0:a",
-                                        "-ac", "1", "-ar", "44100", "-b:a", "128k", "-map_metadata", "-1",
-                                        "-id3v2_version", "0", "-write_xing", "0", "-f", "mp3", "pipe:1"},
-                   {}, &error);
+        QStringList args{"-v", "error"};
+        QString graph;
+        for (int k = 0; k < parts.size(); ++k) {
+            args << "-i" << parts[k];
+            graph += QString("[%1:a:0]aresample=44100,aformat=channel_layouts=mono[a%1];").arg(k);
+        }
+        for (int k = 0; k < parts.size(); ++k)
+            graph += QString("[a%1]").arg(k);
+        graph += QString("concat=n=%1:v=0:a=1[out]").arg(parts.size());
+        args << "-filter_complex" << graph << "-map" << "[out]" << "-ac" << "1" << "-ar" << "44100" << "-b:a" << "128k"
+             << "-map_metadata" << "-1" << "-id3v2_version" << "0" << "-write_xing" << "0" << "-f" << "mp3" << "pipe:1";
+        return run(lunii::ffmpegPath(), args, {}, &error);
+    }
+
+    // annonce enregistrée : mono 44,1 kHz, 0,5 s de silence avant et après, comme celles de Piper
+    QString recording(const QString &file)
+    {
+        const QByteArray mp3 = run(lunii::ffmpegPath(), {"-v", "error", "-i", file, "-map", "0:a:0", "-af",
+                                                         "aformat=channel_layouts=mono,adelay=500,apad=pad_dur=0.5",
+                                                         "-ac", "1", "-ar", "44100", "-b:a", "128k", "-map_metadata", "-1",
+                                                         "-id3v2_version", "0", "-f", "mp3", "pipe:1"},
+                                   {}, &error);
+        return mp3.isEmpty() ? QString() : asset(mp3, "mp3");
+    }
+
+    // enregistrement s'il y en a un, sinon Piper (si activé)
+    QString announce(const QString &file, const QString &text)
+    {
+        if (!file.isEmpty()) {
+            const QString a = recording(file);
+            if (!a.isEmpty())
+                return a;
+        }
+        return speak(text);
     }
 
     QImage embeddedCover(const QString &audio)
@@ -472,7 +617,8 @@ void PackWizard::accept()
     QFutureWatcher<bool> watcher;
     QEventLoop loop;
     connect(&watcher, &QFutureWatcher<bool>::finished, &loop, &QEventLoop::quit);
-    watcher.setFuture(QtConcurrent::run([gen, stories, title, groupSize, coverTts, cancelled, &progress]() {
+    const QString coverAnnounce = m_coverAnnounce;
+    watcher.setFuture(QtConcurrent::run([gen, stories, title, groupSize, coverTts, coverAnnounce, cancelled, &progress]() {
         StudioPack &p = gen->pack;
         p.title = title;
         p.description = QStringList([&] {
@@ -489,8 +635,9 @@ void PackWizard::accept()
             QMetaObject::invokeMethod(&progress, "setValue", Qt::QueuedConnection, Q_ARG(int, i));
             const StoryInput &in = stories[i];
             QStringList parts;
+            QString found;   // « titre.* » trouvé dans le dossier ou le zip
             for (const QString &src : in.parts)
-                parts << gen->expand(src, i);
+                parts << gen->expand(src, i, &found);
             if (parts.isEmpty()) {
                 gen->error = QObject::tr("« %1 » : aucun fichier audio").arg(in.title);
                 return false;
@@ -503,7 +650,8 @@ void PackWizard::accept()
             QImage cover = in.image.isEmpty() ? gen->embeddedCover(parts.first()) : QImage(in.image);
             if (cover.isNull())
                 cover = gen->titleCard(in.title);
-            built << Built{in.title, gen->screen(cover), gen->speak(in.title), gen->asset(audio, "mp3"),
+            built << Built{in.title, gen->screen(cover), gen->announce(in.announce.isEmpty() ? found : in.announce, in.title),
+                           gen->asset(audio, "mp3"),
                            cover.scaled(240, 240, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation)};
         }
 
@@ -545,7 +693,7 @@ void PackWizard::accept()
         root.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         root.name = themed ? QObject::tr("Choix du thème") : QObject::tr("Choix de l'histoire");
         root.pos = {250, 0};
-        StageNode cover = stage(title, {0, 0}, gen->asset(coverPng, "png"), gen->speak(coverTts), true, true, false, false, false);
+        StageNode cover = stage(title, {0, 0}, gen->asset(coverPng, "png"), gen->announce(coverAnnounce, coverTts), true, true, false, false, false);
         cover.type = "cover";
         cover.ok = {root.id, 0};
         p.stages << cover;

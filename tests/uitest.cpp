@@ -11,12 +11,14 @@
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
 #include "app/editor/wizard.h"
+#include "core/convert.h"
 #include "core/device.h"
 #include "core/flamdevice.h"
 #include "core/storydb.h"
 #include "core/studiopack.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QDropEvent>
 #include <QElapsedTimer>
@@ -27,6 +29,7 @@
 #include <QMediaPlayer>
 #include <QListView>
 #include <QMimeData>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -290,6 +293,77 @@ static void transport()
     qInfo("lecture de test : %lld s, simulateur %lld ms / %lld ms", pl->duration() / 1000, sp->position(), sp->duration());
 }
 
+// Annonces enregistrées : « titre.* » d'un dossier, « X.titre.* » à côté d'un fichier, accueil du pack ;
+// parties de formats différents (44,1 kHz mono + 48 kHz stéréo) réunies sans erreur de durée
+static double seconds(const lunii::StudioPack &p, const QString &asset, const QString &dir)
+{
+    const QString f = dir + "/probe.mp3";
+    QFile out(f);
+    if (!out.open(QIODevice::WriteOnly))
+        return -1;
+    out.write(p.assetData(asset));
+    out.close();
+    QProcess pr;
+    pr.start("ffprobe", {"-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f});
+    pr.waitForFinished();
+    return pr.readAllStandardOutput().trimmed().toDouble();
+}
+
+static void tone(const QString &file, double secs, int rate, int channels, int freq)
+{
+    QProcess::execute("ffmpeg", {"-v", "error", "-y", "-f", "lavfi", "-i",
+                                 QString("sine=frequency=%1:sample_rate=%2:duration=%3").arg(freq).arg(rate).arg(secs),
+                                 "-ac", QString::number(channels), file});
+}
+
+static void announces()
+{
+    QTemporaryDir tmp;
+    const QString d = tmp.path();
+    QDir().mkpath(d + "/Le dragon");
+    tone(d + "/Le dragon/1 debut.mp3", 3, 44100, 1, 440);
+    tone(d + "/Le dragon/2 suite.wav", 4, 48000, 2, 550);
+    tone(d + "/Le dragon/titre.mp3", 2, 22050, 1, 660);
+    tone(d + "/La fee.mp3", 5, 44100, 2, 330);
+    tone(d + "/La fee.titre.wav", 1, 48000, 2, 770);
+    tone(d + "/accueil.ogg", 1.5, 44100, 1, 880);
+
+    PackWizard w(d);
+    w.m_tts->setChecked(false);   // sans Piper : seules les annonces enregistrées
+    w.m_title->setText("Test annonces");
+    w.m_groupSize->setValue(0);
+    w.m_stories << PackWizard::StoryInput{"Le dragon", {d + "/Le dragon"}, {}, {}};
+    w.addAudioFiles({d + "/La fee.mp3", d + "/La fee.titre.wav"});
+    CHECK(w.m_stories.size() == 2);
+    CHECK(w.m_stories.size() == 2 && w.m_stories[1].announce.endsWith("La fee.titre.wav"));
+    w.m_coverAnnounce = d + "/accueil.ogg";
+    w.accept();
+    const lunii::StudioPack p = w.result();
+    CHECK(p.validate().isEmpty());
+    auto find = [&](const QString &name) -> const lunii::StageNode * {
+        for (const auto &st : p.stages)
+            if (st.name == name)
+                return &st;
+        return nullptr;
+    };
+    const auto *dragon = find("Le dragon"), *dragonStory = find("Le dragon (histoire)");
+    const auto *fee = find("La fee"), *feeStory = find("La fee (histoire)");
+    CHECK(dragon && dragonStory && fee && feeStory);
+    if (!dragon || !dragonStory || !fee || !feeStory)
+        return;
+    const double a1 = seconds(p, dragon->audio, d), s1 = seconds(p, dragonStory->audio, d);
+    const double a2 = seconds(p, fee->audio, d), s2 = seconds(p, feeStory->audio, d);
+    const double c = seconds(p, p.stages.first().audio, d);
+    qInfo("annonces : dragon %.2f s (histoire %.2f s), fée %.2f s (histoire %.2f s), accueil %.2f s", a1, s1, a2, s2, c);
+    CHECK(qAbs(a1 - 3.0) < 0.2);    // 2 s + 0,5 s avant et après
+    CHECK(qAbs(s1 - 7.0) < 0.2);    // titre.mp3 exclu des parties ; 3 s + 4 s malgré les formats différents
+    CHECK(qAbs(a2 - 2.0) < 0.2);
+    CHECK(qAbs(s2 - 5.0) < 0.2);
+    CHECK(qAbs(c - 2.5) < 0.2);
+    const lunii::Mp3Info mi = lunii::mp3Info(p.assetData(fee->audio));
+    CHECK(mi.valid && mi.mono && mi.sampleRate == 44100);
+}
+
 // Assistant : zips d'histoires (parties à réunir) -> pack à thèmes, puis import sur une fausse Lunii
 static void wizard(const QStringList &zips)
 {
@@ -339,6 +413,7 @@ int main(int argc, char **argv)
     testLibraryDropFromDevice();
     EditorPageTest::run();
     EditorPageTest::transport();
+    EditorPageTest::announces();
     if (argc > 3)
         EditorPageTest::wizard(QCoreApplication::arguments().mid(3));
     qInfo("%s : %d échec(s)", g_failures ? "ÉCHEC" : "SUCCÈS", g_failures);
