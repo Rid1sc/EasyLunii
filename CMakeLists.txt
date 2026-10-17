@@ -55,6 +55,7 @@ add_library(luniiapp STATIC
     src/app/editor/audiotransport.cpp
     src/app/editor/simulator.cpp
     src/app/editor/wizard.cpp
+    src/app/editor/trimdialog.cpp
     src/app/sources/plugin.cpp
     src/app/sources/sourcedialog.cpp
 )

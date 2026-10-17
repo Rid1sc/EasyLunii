@@ -11,6 +11,7 @@
 #include "app/editor/audiotransport.h"
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
+#include "app/editor/trimdialog.h"
 #include "app/editor/wizard.h"
 #include "app/sources/sourcedialog.h"
 #include "core/convert.h"
@@ -393,6 +394,44 @@ static void announces()
     CHECK(mi.valid && mi.mono && mi.sampleRate == 44100);
 }
 
+// Découpe : 2 s + 6 s + 2 s, on retire le début et la fin (dont un passage en deux fois, fusionné)
+static void trim()
+{
+    QTemporaryDir tmp;
+    const QString d = tmp.path();
+    tone(d + "/a.wav", 2, 44100, 1, 440);
+    tone(d + "/b.wav", 6, 44100, 1, 550);
+    tone(d + "/c.wav", 2, 44100, 1, 660);
+    QProcess::execute("ffmpeg", {"-v", "error", "-y", "-i", d + "/a.wav", "-i", d + "/b.wav", "-i", d + "/c.wav", "-filter_complex",
+                                 "[0:a][1:a][2:a]concat=n=3:v=0:a=1[o]", "-map", "[o]", d + "/src.mp3"});
+    TrimDialog t(d + "/src.mp3", "test");
+    WAIT_FOR(t.m_wave->duration() > 9.5, 10000);
+    t.removeSpan({0, 1});
+    t.removeSpan({0.8, 2.0});   // chevauche le précédent : fusion en 0–2 s
+    t.removeSpan({8.0, 99});
+    const QList<Span> k = t.kept();
+    CHECK(k.size() == 1 && qAbs(k.first().first - 2.0) < 0.01 && qAbs(k.first().second - 8.0) < 0.01);
+    if (!qEnvironmentVariable("GRAB_TRIM").isEmpty()) {
+        t.m_wave->setSelection({3.0, 4.5});
+        t.resize(980, 420);
+        t.show();
+        QTest::qWait(500);
+        t.grab().save(qEnvironmentVariable("GRAB_TRIM"));
+    }
+    QString err;
+    const QByteArray mp3 = TrimDialog::render(d + "/src.mp3", k, &err);
+    CHECK(!mp3.isEmpty());
+    QFile out(d + "/out.mp3");
+    CHECK(out.open(QIODevice::WriteOnly) && out.write(mp3) == mp3.size());
+    out.close();
+    QProcess pr;
+    pr.start("ffprobe", {"-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", d + "/out.mp3"});
+    pr.waitForFinished();
+    const double len = pr.readAllStandardOutput().trimmed().toDouble();
+    qInfo("découpe : 10 s -> %.2f s", len);
+    CHECK(qAbs(len - 6.0) < 0.15);
+}
+
 // Source « Podcasts » sur un vrai flux (réseau) : ouverture d'un lien, choix de 2 épisodes,
 // téléchargement par la file des transferts, puis cache (2e passage sans réseau pour l'audio)
 static void podcastSource()
@@ -482,6 +521,7 @@ int main(int argc, char **argv)
     EditorPageTest::run();
     EditorPageTest::transport();
     EditorPageTest::announces();
+    EditorPageTest::trim();
     if (qEnvironmentVariableIsSet("EASYLUNII_TEST_NETWORK"))
         EditorPageTest::podcastSource();
     if (argc > 3)

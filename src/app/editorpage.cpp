@@ -3,6 +3,7 @@
 #include "app/editor/audiotransport.h"
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
+#include "app/editor/trimdialog.h"
 #include "app/editor/wizard.h"
 #include "app/sources/sourcedialog.h"
 #include "app/jobqueue.h"
@@ -433,10 +434,16 @@ void EditorPage::buildUi()
     audStop->setToolTip(tr("Arrêter"));
     auto *audPick = new QPushButton(QIcon::fromTheme("document-open"), tr("Son…"));
     auto *audSource = new QPushButton(QIcon::fromTheme("folder-sound"), tr("Source…"));
+    auto *audTrim = new QPushButton(QIcon::fromTheme("edit-cut"), tr("Découper…"));
+    audTrim->setToolTip(tr("Retirer des passages du son (générique, annonce…)"));
     audSource->setToolTip(tr("Son depuis un plugin de source (podcast, vidéo…)"));
     auto *audClear = new QPushButton(QIcon::fromTheme("edit-clear"), tr("Retirer"));
-    for (auto *b : {audPlay, audStop, audPick, audSource, audClear})
+    for (auto *b : {audPlay, audStop, audPick, audClear})
         audBtns->addWidget(b);
+    auto *audBtns2 = new QHBoxLayout;
+    for (auto *b : {audSource, audTrim})
+        audBtns2->addWidget(b);
+    audBtns2->addStretch();
     m_transport = new AudioTransport;
     auto *ctrlBox = new QGroupBox(tr("Commandes actives sur ce nœud"));
     auto *cl = new QVBoxLayout(ctrlBox);
@@ -463,6 +470,7 @@ void EditorPage::buildUi()
     sf->addRow(QString(), imgBtns);
     sf->addRow(tr("Son :"), m_stageAudio);
     sf->addRow(QString(), audBtns);
+    sf->addRow(QString(), audBtns2);
     sf->addRow(QString(), m_transport);
     sf->addRow(ctrlBox);
     sf->addRow(new QLabel(tr("<b>Après OK</b> (ou fin du son en lecture auto)")));
@@ -508,6 +516,31 @@ void EditorPage::buildUi()
         const QString a = importAudio(f);
         if (!a.isEmpty())
             change(tr("Son"), [this, i, a]() { m_pack.stages[i].audio = a; });
+    });
+    connect(audTrim, &QPushButton::clicked, this, [this, stageIdx]() {
+        const int i = stageIdx();
+        if (i < 0 || m_pack.stages[i].audio.isEmpty() || !m_pack.hasAsset(m_pack.stages[i].audio))
+            return;
+        stopAudio();
+        const QString asset = m_pack.stages[i].audio;
+        QString file = m_pack.assetFiles.value(asset);
+        if (file.isEmpty()) {   // son gardé en mémoire : copie temporaire pour ffmpeg
+            file = m_spill.path() + "/decoupe." + QFileInfo(asset).suffix();
+            QFile f(file);
+            if (!f.open(QIODevice::WriteOnly) || f.write(m_pack.assets.value(asset)) < 0)
+                return;
+        }
+        TrimDialog d(file, m_pack.stages[i].name, this);
+        if (!d.exec() || !d.changed())
+            return;
+        QString err;
+        const QByteArray mp3 = TrimDialog::render(file, d.kept(), &err);
+        if (mp3.isEmpty()) {
+            QMessageBox::warning(this, tr("Découper"), tr("Découpe impossible :\n%1").arg(err));
+            return;
+        }
+        const QString a = addAsset(mp3, "mp3");
+        change(tr("Découpe du son"), [this, i, a]() { m_pack.stages[i].audio = a; });
     });
     connect(audSource, &QPushButton::clicked, this, [this, stageIdx]() {
         const int i = stageIdx();
