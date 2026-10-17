@@ -19,7 +19,7 @@ QStringList PluginInfo::searchPaths()
 {
     const QString app = QCoreApplication::applicationDirPath();
     return {app + "/plugins", QDir::cleanPath(app + "/../share/easylunii/plugins"),
-            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/plugins"};
+            QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/easylunii/plugins"};
 }
 
 PluginInfo PluginInfo::load(const QString &dir, QString *error)
@@ -101,12 +101,12 @@ SourceItem SourceItem::fromJson(const QJsonObject &o)
 
 QString PluginRunner::cacheDir(const QString &pluginId)
 {
-    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/sources/" + pluginId;
+    return QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/easylunii/sources/" + pluginId;
 }
 
 QString PluginRunner::dataDir(const QString &pluginId)
 {
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/plugin-data/" + pluginId;
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/easylunii/plugin-data/" + pluginId;
 }
 
 QJsonObject PluginRunner::call(const QString &command, const QJsonObject &args, const Progress &progress,
@@ -121,6 +121,12 @@ QJsonObject PluginRunner::call(const QString &command, const QJsonObject &args, 
     env.insert("EASYLUNII_PLUGIN_DATA", data);
     env.insert("EASYLUNII_FFMPEG", lunii::ffmpegPath());
     env.insert("EASYLUNII_VERSION", QCoreApplication::applicationVersion());
+#ifdef Q_OS_WIN
+    // plugins dans un sous-dossier : DLL et extensions Qt de l'application
+    const QString app = QDir::toNativeSeparators(QCoreApplication::applicationDirPath());
+    env.insert("PATH", app + ";" + env.value("PATH"));
+    env.insert("QT_PLUGIN_PATH", app);
+#endif
     p.setProcessEnvironment(env);
     p.start(m_p.executable, {command});
     if (!p.waitForStarted(10000)) {

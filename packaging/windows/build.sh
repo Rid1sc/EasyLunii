@@ -17,6 +17,12 @@ STAGE="$BUILD/EasyLunii"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp "$BUILD/easylunii.exe" "$BUILD/easylunii-cli.exe" "$STAGE/"
+# plugins de sources (avant le déploiement : leurs DLL sont collectées aussi)
+for d in "$BUILD"/plugins/*/; do
+    n=$(basename "$d")
+    mkdir -p "$STAGE/plugins/$n"
+    cp "$d"plugin.json "$d"*.exe "$STAGE/plugins/$n/"
+done
 "$SRC/packaging/windows/deploy.sh" "$STAGE"
 "$SRC/packaging/windows/icons.sh" "$STAGE/icons"
 cp "$SRC/LICENSE" "$STAGE/LICENSE.txt"

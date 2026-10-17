@@ -436,6 +436,7 @@ static void trim()
 // téléchargement par la file des transferts, puis cache (2e passage sans réseau pour l'audio)
 static void podcastSource()
 {
+    QDir(PluginRunner::cacheDir("podcast")).removeRecursively();   // premier passage : vrai téléchargement
     JobQueue jobs;
     SourceDialog d(SourceDialog::Stories, &jobs);
     CHECK(d.hasPlugins());

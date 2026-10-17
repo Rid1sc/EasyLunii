@@ -86,6 +86,10 @@ add_executable(easylunii-podcast plugins/podcast/main.cpp)
 target_link_libraries(easylunii-podcast PRIVATE Qt6::Core Qt6::Network)
 easylunii_plugin(podcast)
 
+add_executable(easylunii-youtube plugins/youtube/main.cpp)
+target_link_libraries(easylunii-youtube PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
+easylunii_plugin(youtube)
+
 option(EASYLUNII_TESTS "Tests d'interface" ON)
 if(EASYLUNII_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Test)

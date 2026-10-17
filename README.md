@@ -10,12 +10,13 @@ Gestionnaire d'histoires pour les conteuses **Lunii** (v1, v2, v3) et **Flam**, 
 - **Glisser-déposer** : de la bibliothèque vers la conteuse pour envoyer, et dans l'autre sens pour sauvegarder.
 - **Conteuse** : détection automatique, import (STUdio, `.plain.pk`, archives v1/v2/v3) avec conversion des images et des sons, ordre, masquage, mode nuit, récupération des histoires perdues.
 - **Histoires officielles** : sauvegarde chiffrée, restaurable sur la conteuse d'origine. Elles ne sont jamais déchiffrées.
-- **Éditeur façon STUdio** : graphe de scènes et de choix, annuler/rétablir, vérification du pack, simulateur de conteuse avec lecture de test.
+- **Éditeur façon STUdio** : graphe de scènes et de choix, annuler/rétablir, vérification du pack, simulateur de conteuse avec lecture de test, découpe des sons (retirer un générique, une annonce…).
+- **Sources** : podcasts (dont Radio France) et vidéos YouTube directement dans l'assistant et l'éditeur, par des plugins. Chacun peut écrire le sien : [PLUGINS.md](PLUGINS.md).
 - **Assistant** : transforme des fichiers audio en pack à menus et thèmes. Les titres sont annoncés avec vos propres enregistrements, ou par [Piper](https://github.com/rhasspy/piper) (synthèse vocale neuronale locale, installée séparément).
 
 ## Technologies
 
-C++20, Qt 6 Widgets et Multimedia, libarchive (zip/7z en flux), OpenSSL (AES), SQLite (index de la bibliothèque), FFmpeg (conversions audio), Piper (voix), CMake. Version Windows compilée avec MinGW.
+C++20, Qt 6 Widgets et Multimedia, libarchive (zip/7z en flux), OpenSSL (AES), SQLite (index de la bibliothèque), FFmpeg (conversions audio), Piper (voix), yt-dlp (plugin YouTube), CMake. Version Windows compilée avec MinGW.
 
 ## Licence et crédits
 
@@ -25,6 +26,7 @@ GPL-3.0 ([LICENSE](LICENSE)), © 2026 Rid1sc et contributeurs. C'est la licence 
 - [STUdio](https://github.com/marian-m12l/studio) (marian-m12l, MPL-2.0) : format des packs et principe de l'éditeur.
 - Lunii Manager : inspiration pour la bibliothèque.
 - Qt (LGPLv3), libarchive (BSD), OpenSSL (Apache-2.0), icônes Breeze de KDE (LGPLv3, version Windows).
+- Plugin YouTube : télécharge au premier usage [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense) et, si besoin, [QuickJS-NG](https://github.com/quickjs-ng/quickjs) (MIT), depuis leurs publications officielles. Usage personnel : les conditions de YouTube s'appliquent.
 
 Projet indépendant, sans lien avec Lunii SAS ni avec la Flam. Gardez une sauvegarde de votre conteuse avant de la modifier.
 
@@ -42,12 +44,13 @@ Story manager for **Lunii** (v1, v2, v3) and **Flam** storytellers, with a libra
 - **Drag and drop**: from the library to the device to upload, and back to back up.
 - **Device**: automatic detection, import (STUdio, `.plain.pk`, v1/v2/v3 archives) with image and audio conversion, ordering, hiding, night mode, recovery of lost stories.
 - **Official stories**: encrypted backup that can be restored on the original device. They are never decrypted.
-- **STUdio-like editor**: graph of scenes and choices, undo/redo, pack validation, device simulator with test playback.
+- **STUdio-like editor**: graph of scenes and choices, undo/redo, pack validation, device simulator with test playback, audio trimming (remove an intro, an ad…).
+- **Sources**: podcasts (including Radio France) and YouTube videos right in the wizard and the editor, through plugins. Write your own: [PLUGINS.md](PLUGINS.md) (in French).
 - **Wizard**: turns audio files into a pack with menus and themes. Titles are announced with your own recordings, or by [Piper](https://github.com/rhasspy/piper) (local neural text-to-speech, installed separately).
 
 ### Technologies
 
-C++20, Qt 6 Widgets and Multimedia, libarchive (streamed zip/7z), OpenSSL (AES), SQLite (library index), FFmpeg (audio conversion), Piper (voices), CMake. Windows build cross-compiled with MinGW.
+C++20, Qt 6 Widgets and Multimedia, libarchive (streamed zip/7z), OpenSSL (AES), SQLite (library index), FFmpeg (audio conversion), Piper (voices), yt-dlp (YouTube plugin), CMake. Windows build cross-compiled with MinGW.
 
 ### License and credits
 
@@ -57,5 +60,6 @@ GPL-3.0 ([LICENSE](LICENSE)), © 2026 Rid1sc and contributors. Lunii.QT requires
 - [STUdio](https://github.com/marian-m12l/studio) (marian-m12l, MPL-2.0): pack format and editor concept.
 - Lunii Manager: inspiration for the library.
 - Qt (LGPLv3), libarchive (BSD), OpenSSL (Apache-2.0), KDE Breeze icons (LGPLv3, Windows build).
+- YouTube plugin: downloads [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense) and, if needed, [QuickJS-NG](https://github.com/quickjs-ng/quickjs) (MIT) from their official releases on first use. Personal use: YouTube's terms apply.
 
 Independent project, not affiliated with Lunii SAS or Flam. Keep a backup of your device before modifying it.

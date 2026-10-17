@@ -1,0 +1,11 @@
+{
+    "id": "youtube",
+    "name": "YouTube",
+    "version": "1.0",
+    "description": "Son de vidéos YouTube, via yt-dlp (téléchargé automatiquement au premier usage, avec un petit moteur JavaScript si nécessaire). Usage personnel uniquement : les conditions de YouTube encadrent le téléchargement, vous en êtes responsable.",
+    "executable": "easylunii-youtube",
+    "search": true,
+    "searchHint": "mots à chercher sur YouTube",
+    "link": true,
+    "linkHint": "lien d'une vidéo ou d'une playlist"
+}
