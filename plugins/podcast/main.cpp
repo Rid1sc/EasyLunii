@@ -257,13 +257,20 @@ static int open(const QJsonObject &req)
     if (url.startsWith("www."))
         url.prepend("https://");
     QString err;
-    // page Apple Podcasts : …/id123456 -> adresse du flux par l'annuaire
-    static const QRegularExpression apple(R"(podcasts\.apple\.com/.*/id(\d+))");
+    // résultat de recherche (« itunes:123456 ») ou page Apple Podcasts (…/id123456) : adresse du flux par l'annuaire
+    static const QRegularExpression apple(R"(^itunes:(\d+)$|podcasts\.apple\.com/.*/id(\d+))");
     if (const auto m = apple.match(url); m.hasMatch()) {
-        const QByteArray d = get(QUrl("https://itunes.apple.com/lookup?id=" + m.captured(1)), &err);
-        const QString feed = QJsonDocument::fromJson(d).object().value("results").toArray().first().toObject().value("feedUrl").toString();
+        const QString id = m.captured(1).isEmpty() ? m.captured(2) : m.captured(1);
+        const QByteArray d = get(QUrl("https://itunes.apple.com/lookup?id=" + id), &err);
+        if (!err.isEmpty())
+            return fail(err);
+        const QJsonObject r = QJsonDocument::fromJson(d).object().value("results").toArray().first().toObject();
+        const QString feed = r.value("feedUrl").toString();
         if (feed.isEmpty())
-            return fail(QStringLiteral("Flux non publié par Apple pour ce podcast : collez le lien de la page de l'émission."));
+            return fail(QStringLiteral("« %1 » (%2) ne publie pas son flux dans l'annuaire d'Apple. Ouvrez la page de l'émission "
+                                       "sur le site de la radio (pour Radio France : radiofrance.fr, page du podcast), "
+                                       "copiez son adresse et collez-la ici.")
+                            .arg(r.value("collectionName").toString(), r.value("artistName").toString()));
         url = feed;
     }
     QByteArray d = get(QUrl(url), &err);

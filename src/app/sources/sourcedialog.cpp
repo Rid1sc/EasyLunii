@@ -123,6 +123,8 @@ SourceDialog::SourceDialog(Mode mode, JobQueue *jobs, QWidget *parent)
     auto *bottom = new QHBoxLayout;
     m_checkAll = new QPushButton(QIcon::fromTheme("edit-select-all"), tr("Tout cocher"), this);
     m_status = new QLabel(this);
+    m_status->setWordWrap(true);   // messages d'erreur des plugins parfois longs
+    m_status->setTextInteractionFlags(Qt::TextSelectableByMouse);
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     m_add = bb->button(QDialogButtonBox::Ok);
     bottom->addWidget(m_checkAll);
