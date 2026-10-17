@@ -42,8 +42,8 @@ using lunii::ActionNode;
 using lunii::StageNode;
 using lunii::StudioPack;
 
-static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "m4b", "flac", "opus", "aac", "webm", "mka"};
-static const QString AUDIO_FILTER = QStringLiteral("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.m4b *.flac *.opus *.aac *.webm *.mka)");
+static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "m4b", "flac", "opus", "aac", "webm", "mka", "mp4"};
+static const QString AUDIO_FILTER = QStringLiteral("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.m4b *.flac *.opus *.aac *.webm *.mka *.mp4)");
 
 // Enregistrement d'annonce : « titre.mp3 », « Annonce.m4a »… dans le dossier ou le zip d'une histoire
 static bool isAnnounceName(const QString &file)

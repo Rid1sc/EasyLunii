@@ -338,8 +338,10 @@ static int fetch(const QJsonObject &req)
     QString err;
     static const QRegularExpression pct(R"(\[download\]\s+([\d.]+)%)");
     const QString title = item.value("title").toString();
-    // son seul, sans conversion (EasyLunii convertit à la création du pack)
-    if (!runYtdlp({"-f", "bestaudio[ext=m4a]/bestaudio", "--no-playlist", "--newline", "-o", dir + "/audio.%(ext)s", url},
+    // son seul si YouTube le propose ; sinon (bridage fréquent) le meilleur format avec du son, dont EasyLunii
+    // n'extrait que l'audio
+    if (!runYtdlp({"-f", "bestaudio[ext=m4a]/bestaudio/best[acodec!=none]/best", "--no-playlist", "--newline", "-o",
+                   dir + "/audio.%(ext)s", url},
                   nullptr, &err, [&](const QString &line) {
                       const auto m = pct.match(line);
                       if (m.hasMatch())
