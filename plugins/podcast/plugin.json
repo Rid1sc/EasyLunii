@@ -2,7 +2,7 @@
     "id": "podcast",
     "name": "Podcasts",
     "version": "1.0",
-    "description": "Épisodes de podcasts : recherche dans l'annuaire Apple Podcasts, ou lien d'une émission (page de l'émission, flux RSS). Radio France : collez l'adresse de la page de l'émission sur radiofrance.fr. Usage personnel.",
+    "description": "Épisodes de podcasts : recherche dans l'annuaire Apple Podcasts, ou lien d'une émission (page de l'émission, flux RSS). Radio France : la plupart des émissions sont trouvées par la recherche ; sinon, collez l'adresse de la page de l'émission sur radiofrance.fr. Usage personnel.",
     "executable": "easylunii-podcast",
     "search": true,
     "searchHint": "nom d'un podcast",

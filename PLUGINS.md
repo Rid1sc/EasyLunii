@@ -5,7 +5,7 @@ Un plugin apporte des sons à EasyLunii : épisodes de podcasts, vidéos, catalo
 Un plugin est un **programme indépendant**, écrit dans n'importe quel langage. EasyLunii le lance pour chaque demande, lui envoie une requête JSON et lit sa réponse JSON.
 
 Plugins fournis :
-- `podcast` : flux RSS, recherche dans l'annuaire Apple Podcasts, pages d'émission (dont Radio France) ;
+- `podcast` : flux RSS, recherche dans l'annuaire Apple Podcasts (les émissions Radio France, dont le flux n'y est pas publié, sont retrouvées par l'adresse de leur page), pages d'émission ;
 - `youtube` : via yt-dlp, téléchargé automatiquement au premier usage.
 
 ## Installation

@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QRegularExpression>
@@ -117,7 +118,7 @@ static int search(const QJsonObject &req)
         const QString feed = r.value("feedUrl").toString();
         QString subtitle = r.value("artistName").toString();
         if (feed.isEmpty())
-            subtitle += QStringLiteral(" — flux non publié dans l'annuaire : collez le lien de la page de l'émission");
+            subtitle += QStringLiteral(" — flux non publié dans l'annuaire (Radio France : retrouvé si possible)");
         items.append(QJsonObject{{"id", feed.isEmpty() ? "itunes:" + QString::number(r.value("collectionId").toInteger()) : feed},
                                  {"kind", "collection"},
                                  {"title", r.value("collectionName").toString()},
@@ -248,6 +249,48 @@ static QString discoverFeed(const QByteArray &html, const QUrl &base)
     return {};
 }
 
+// Radio France ne publie pas ses flux dans l'annuaire d'Apple, mais ses pages suivent le schéma
+// radiofrance.fr/<station>/podcasts/<nom-du-podcast> : on la retrouve à partir du nom, puis son flux.
+static QString slug(const QString &title)
+{
+    QString out;
+    for (const QChar c : title.normalized(QString::NormalizationForm_KD).toLower()) {
+        if (c.isLetterOrNumber() && c.unicode() < 128)
+            out += c;
+        else if (c.unicode() < 128 && !out.endsWith('-') && !out.isEmpty())
+            out += '-';   // espaces, apostrophes, ponctuation (les accents décomposés sont ignorés)
+    }
+    while (out.endsWith('-'))
+        out.chop(1);
+    return out;
+}
+
+static QString radioFranceFeed(const QString &name, const QString &artist)
+{
+    static const QMap<QString, QString> stations{{"france inter", "franceinter"}, {"france culture", "franceculture"},
+                                                 {"france musique", "francemusique"}, {"franceinfo", "franceinfo"},
+                                                 {"france info", "franceinfo"}, {"fip", "fip"}, {"mouv'", "mouv"}, {"mouv", "mouv"}};
+    const QString station = stations.value(artist.trimmed().toLower());
+    if (station.isEmpty())
+        return {};
+    const QString full = slug(name);
+    QStringList candidates{full};
+    static const QRegularExpression article(R"(^(le|la|les|l)-)");
+    if (QString(full).remove(article) != full)
+        candidates << QString(full).remove(article);
+    for (const QString &c : candidates) {
+        const QUrl page("https://www.radiofrance.fr/" + station + "/podcasts/" + c);
+        QString err;
+        const QByteArray html = get(page, &err);
+        if (!err.isEmpty())
+            continue;
+        const QString feed = discoverFeed(html, page);
+        if (!feed.isEmpty())
+            return feed;
+    }
+    return {};
+}
+
 static int open(const QJsonObject &req)
 {
     QString url = req.value("url").toString().trimmed();
@@ -265,7 +308,9 @@ static int open(const QJsonObject &req)
         if (!err.isEmpty())
             return fail(err);
         const QJsonObject r = QJsonDocument::fromJson(d).object().value("results").toArray().first().toObject();
-        const QString feed = r.value("feedUrl").toString();
+        QString feed = r.value("feedUrl").toString();
+        if (feed.isEmpty())
+            feed = radioFranceFeed(r.value("collectionName").toString(), r.value("artistName").toString());
         if (feed.isEmpty())
             return fail(QStringLiteral("« %1 » (%2) ne publie pas son flux dans l'annuaire d'Apple. Ouvrez la page de l'émission "
                                        "sur le site de la radio (pour Radio France : radiofrance.fr, page du podcast), "
