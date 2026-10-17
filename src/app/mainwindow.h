@@ -36,7 +36,7 @@ private:
     LibraryPage *m_libPage;
     EditorPage *m_editor;
     QPlainTextEdit *m_log;
-    QLabel *m_jobLabel;
+    QToolButton *m_jobLabel;   // ouvre le panneau des transferts
     QProgressBar *m_jobProgress;
     QToolButton *m_cancel;
 };

@@ -28,6 +28,9 @@ static int usage()
            "  remove <montage> <uuid>\n"
            "  hide|show|nm-on|nm-off <montage> <uuid>\n"
            "  move <montage> <uuid> <position>   (1 = première)\n"
+           "  config <montage> [n=valeur…]     réglages .cfg (3 = mode nuit, 4 = volume max, 5 = nb d'histoires…)\n"
+           "  keys-export <montage> <dossier>  sauvegarde des clés et du .md/.mdf\n"
+           "  keys-restore <sauvegarde.zip>    remet les clés dans ~/.lunii-qt\n"
            "  recover <montage> [--dry-run]   histoires perdues (dans .content, absentes de .pi)\n"
            "  cleanup <montage>               supprime les dossiers d'histoires non référencés\n"
            "  type <archive>                  type d'archive détecté\n"
@@ -128,6 +131,16 @@ int main(int argc, char **argv)
         return ok ? 0 : 1;
     }
 
+    if (cmd == "keys-restore" && a.size() == 1) {
+        QString e;
+        const int n = StoryDevice::restoreKeys(a[0], &e);
+        if (n < 0)
+            err << e << "\n";
+        else
+            out << n << " fichier(s) copié(s) dans ~/.lunii-qt\n";
+        return n < 0 ? 1 : 0;
+    }
+
     if (a.isEmpty())
         return usage();
     StoryDb::instance().load(false);
@@ -185,6 +198,27 @@ int main(int argc, char **argv)
             return 1;
         order.insert(qBound(0, a[1].toInt() - 1, int(order.size())), u);
         return dev.reorder(order) ? 0 : 1;
+    }
+    if (cmd == "config") {
+        DeviceConfig c = dev.config();
+        for (const QString &kv : std::as_const(a)) {
+            const QStringList p = kv.split('=');
+            if (p.size() == 2 && p[0].toInt() >= 0 && p[0].toInt() < c.values.size())
+                c.values[p[0].toInt()] = p[1].toInt();
+        }
+        if (!a.isEmpty() && !dev.setConfig(c))
+            return 1;
+        c = dev.config();
+        out << (c.supported ? "modifiable" : "lecture seule");
+        for (int i = 0; i < c.values.size(); ++i)
+            out << " " << i << "=" << c.values[i];
+        out << "\n";
+        return 0;
+    }
+    if (cmd == "keys-export" && a.size() == 1) {
+        const QString z = dev.exportKeys(a[0]);
+        out << z << "\n";
+        return z.isEmpty() ? 1 : 0;
     }
     if (cmd == "recover") {
         out << dev.recoverStories(a.contains("--dry-run")) << " histoire(s)\n";

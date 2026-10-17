@@ -5,6 +5,7 @@
 #include "app/jobqueue.h"
 #include "app/library.h"
 #include "app/librarypage.h"
+#include "app/transferpanel.h"
 #include "core/storydevice.h"
 #include "core/storydb.h"
 
@@ -49,8 +50,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     addDockWidget(Qt::BottomDockWidgetArea, dock);
     dock->hide();
 
-    // barre d'état : tâche en cours
-    m_jobLabel = new QLabel(this);
+    // transferts : tâche en cours, file d'attente, tâches terminées
+    auto *tdock = new QDockWidget(tr("Transferts"), this);
+    tdock->setObjectName("transfers");
+    auto *transfers = new TransferPanel(m_jobs, tdock);
+    tdock->setWidget(transfers);
+    addDockWidget(Qt::RightDockWidgetArea, tdock);
+    tdock->hide();
+    connect(transfers, &TransferPanel::abortCurrent, this, [this]() {
+        if (auto *d = m_libPage->devicePanel()->device())
+            d->requestAbort();
+        log(QtWarningMsg, tr("Arrêt de la tâche en cours demandé"));
+    });
+    connect(m_libPage->devicePanel(), &DevicePanel::progress, transfers,
+            [transfers](const QString &, int c, int t) { transfers->setProgress(c, t); });
+    connect(m_libPage->devicePanel(), &DevicePanel::transferDetail, transfers, &TransferPanel::setDetail);
+
+    // barre d'état : tâche en cours (clic : panneau des transferts)
+    m_jobLabel = new QToolButton(this);
+    m_jobLabel->setAutoRaise(true);
+    m_jobLabel->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_jobLabel->setToolTip(tr("Afficher la liste des transferts"));
+    connect(m_jobLabel, &QToolButton::clicked, this, [tdock]() {
+        tdock->show();
+        tdock->raise();
+    });
     m_jobProgress = new QProgressBar(this);
     m_jobProgress->setMaximumWidth(220);
     m_jobProgress->setMaximumHeight(14);
@@ -64,8 +88,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     statusBar()->addPermanentWidget(m_jobProgress);
     statusBar()->addPermanentWidget(m_cancel);
 
-    connect(m_jobs, &JobQueue::started, this, [this](const QString &label, int remaining) {
-        m_jobLabel->setText(remaining ? tr("%1 (+%2 en attente)").arg(label).arg(remaining) : label);
+    connect(m_jobs, &JobQueue::changed, this, [this]() {
+        const QString cur = m_jobs->currentLabel();
+        const int n = m_jobs->pending();
+        m_jobLabel->setText(cur.isEmpty() ? QString() : n ? tr("%1 (+%2 en attente)").arg(cur).arg(n) : cur);
+    });
+    connect(m_jobs, &JobQueue::started, this, [this]() {
         m_jobProgress->setRange(0, 0);
         m_jobProgress->show();
         m_cancel->show();
@@ -74,7 +102,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         log(ok ? QtInfoMsg : QtWarningMsg, ok ? tr("Terminé : %1").arg(label) : tr("Échec : %1").arg(label));
     });
     connect(m_jobs, &JobQueue::idle, this, [this]() {
-        m_jobLabel->clear();
+        m_jobLabel->setText({});
         m_jobProgress->hide();
         m_cancel->hide();
     });
@@ -142,6 +170,9 @@ void MainWindow::buildMenus()
     dev->addAction(QIcon::fromTheme("edit-find"), tr("Récupérer les histoires perdues…"), panel, &DevicePanel::recover);
     dev->addAction(QIcon::fromTheme("edit-clear"), tr("Nettoyer les dossiers orphelins…"), panel, &DevicePanel::cleanup);
     dev->addSeparator();
+    dev->addAction(QIcon::fromTheme("document-save"), tr("Sauvegarder les clés de la conteuse…"), panel, &DevicePanel::saveKeys);
+    dev->addAction(QIcon::fromTheme("document-open"), tr("Restaurer des clés…"), panel, &DevicePanel::restoreKeys);
+    dev->addSeparator();
     dev->addAction(QIcon::fromTheme("view-refresh"), tr("Mettre à jour la base officielle Lunii"), this, [this]() {
         log(QtInfoMsg, tr("Téléchargement de la base officielle…"));
         auto *w = new QFutureWatcher<bool>(this);
@@ -159,6 +190,10 @@ void MainWindow::buildMenus()
     logAct->setText(tr("Journal"));
     logAct->setShortcut(QKeySequence("Ctrl+L"));
     view->addAction(logAct);
+    auto *trAct = findChild<QDockWidget *>("transfers")->toggleViewAction();
+    trAct->setText(tr("Transferts"));
+    trAct->setShortcut(QKeySequence("Ctrl+T"));
+    view->addAction(trAct);
 
     auto *help = menuBar()->addMenu(tr("&Aide"));
     help->addAction(QIcon::fromTheme("help-about"), tr("À propos"), this, &MainWindow::about);

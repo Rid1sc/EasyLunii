@@ -40,6 +40,7 @@ public:
     bool isValid() const { return m_valid; }
     QString mountPoint() const { return m_mount; }
     virtual QString describe() const = 0;
+    virtual QString snu() const = 0;   // numéro de série affiché
     virtual bool canImport() const = 0;
     virtual bool exportAllowed(const QUuid &u) const = 0;
     virtual bool supportsNightMode() const { return false; }   // mode nuit par histoire et réglages
@@ -62,6 +63,11 @@ public:
     virtual int recoverStories(bool dryRun) = 0;
     virtual int cleanupStories(qint64 *freedBytes = nullptr) = 0;
 
+    // Sauvegarde des fichiers d'identité et de clés (.md/.mdf de l'appareil, clés et copies .md de ~/.lunii-qt)
+    QString exportKeys(const QString &outDir);   // zip créé, vide si échec
+    // Remet les clés d'une sauvegarde dans ~/.lunii-qt (rien n'est écrit sur la conteuse) ; nombre de fichiers copiés, -1 si erreur
+    static int restoreKeys(const QString &zipPath, QString *error = nullptr);
+
     virtual DeviceConfig config() const { return {}; }
     virtual bool setConfig(const DeviceConfig &) { return false; }
 
@@ -76,6 +82,8 @@ signals:
 protected:
     explicit StoryDevice(const QString &mountPoint, QObject *parent) : QObject(parent), m_mount(mountPoint) {}
     virtual bool writePackIndex() = 0;
+    // fichiers à sauvegarder : nom dans le zip -> chemin
+    virtual QList<QPair<QString, QString>> keyFiles() const = 0;
     bool writeFile(const QString &path, const QByteArray &data, bool progress = false);
     bool aborted();
     bool alreadyLoaded(const QUuid &u);

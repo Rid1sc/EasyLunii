@@ -28,7 +28,7 @@ public:
     HwVersion hwVersion() const { return m_hw; }
     int mdVersion() const { return m_mdVersion; }
     QString firmware() const;
-    QString snu() const;                  // numéro de série affiché
+    QString snu() const override;         // numéro de série affiché
     QString describe() const override;    // résumé lisible (modèle, firmware, SNU, clés)
     bool canImport() const override;      // clés disponibles pour écrire des histoires
     bool supportsNightMode() const override { return true; }
@@ -61,6 +61,7 @@ private:
     void loadStoryKeys(const QString &btPath);
     void readStories();
     void readConfig();
+    QList<QPair<QString, QString>> keyFiles() const override;
     bool writePackIndex() override;
 
     QByteArray decipher(const QByteArray &buf, const QByteArray &key, const QByteArray &iv) const;
@@ -79,6 +80,8 @@ private:
     QString exportBackup(const DeviceStory &s, const QString &outDir);
 
     bool checkV3Key(const QString &storyPath) const;
+    // clés qui déchiffrent vraiment cette histoire v3 : bt + clés de l'appareil, clé dérivée du numéro de série, ou clé du .md
+    bool findV3Keys(const QString &storyPath, QByteArray &key, QByteArray &iv) const;
     bool checkV2Bt(const QString &storyPath) const;
     bool validStory(const QString &storyPath);
     bool cleanStoryDir(const QUuid &u);
@@ -91,6 +94,8 @@ private:
     QByteArray m_storyKey, m_storyIv;    // clés des histoires (v3)
     QByteArray m_bt;                     // contenu du fichier d'autorisation à écrire
     DeviceConfig m_config;
+    quint16 m_cfgVersion = 0x100;        // en-tête du .cfg, conservé à l'écriture
+    QList<int> m_cfgKeys;                // entrées présentes dans le .cfg, dans l'ordre
 };
 
 

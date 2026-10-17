@@ -19,7 +19,7 @@ public:
     bool exportAllowed(const QUuid &) const override { return true; }   // déchiffré ou sauvegarde selon l'histoire
     QString storyDir(const DeviceStory &s) const override;
     QByteArray coverImage(const QUuid &u) const override;
-    QString snu() const;
+    QString snu() const override;
     QString firmware() const { return m_fwMain; }
 
     bool importStory(const QString &archivePath) override;
@@ -30,6 +30,7 @@ public:
     int cleanupStories(qint64 *freedBytes = nullptr) override;
 
 protected:
+    QList<QPair<QString, QString>> keyFiles() const override;
     bool writePackIndex() override;
 
 private:

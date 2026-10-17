@@ -216,7 +216,7 @@ QString LuniiDevice::describe() const
     }
     QString s = tr("%1, firmware %2, .md v%3, SNU %4").arg(hw, firmware()).arg(m_mdVersion).arg(snu());
     if (m_hw == HwVersion::V3)
-        s += m_deviceKey.isEmpty() ? tr(", clés de l'appareil absentes") : tr(", clés de l'appareil présentes");
+        s += m_deviceKey.isEmpty() ? tr(", clés de l'appareil non fournies (facultatives)") : tr(", clés de l'appareil fournies");
     return s;
 }
 
@@ -337,16 +337,22 @@ void LuniiDevice::readConfig()
     if (!f.open(QIODevice::ReadOnly))
         return;
     const QByteArray d = f.readAll();
-    if (d.size() < 2 || qFromLittleEndian<quint16>(d.constData()) != 0x100) {
+    // 0x100 : firmwares 3.x ; 0x0001 : firmwares 2.x (mêmes paires numéro/valeur, sans l'entrée 9)
+    const quint16 version = d.size() >= 2 ? qFromLittleEndian<quint16>(d.constData()) : 0;
+    if ((version != 0x100 && version != 0x0001) || (d.size() - 2) % 4 != 0) {
         m_config.supported = false;
-        warn(tr("Version de .cfg non prise en charge : réglages en lecture seule"));
+        warn(tr("Version de .cfg non prise en charge (%1) : réglages en lecture seule").arg(version));
         return;
     }
+    m_cfgVersion = version;
+    m_cfgKeys.clear();
     for (int i = 2; i + 4 <= d.size(); i += 4) {
         const int idx = qFromLittleEndian<quint16>(d.constData() + i);
         const int val = qFromLittleEndian<quint16>(d.constData() + i + 2);
-        if (idx >= 0 && idx < m_config.values.size())
+        if (idx >= 0 && idx < m_config.values.size() && !m_cfgKeys.contains(idx)) {
             m_config.values[idx] = val;
+            m_cfgKeys << idx;
+        }
     }
 }
 
@@ -356,8 +362,14 @@ bool LuniiDevice::setConfig(const DeviceConfig &cfg)
         error(tr("Réglages non modifiables : version de .cfg inconnue"));
         return false;
     }
-    QByteArray d("\x00\x01", 2);
-    for (int i = 0; i < cfg.values.size(); ++i) {
+    // même version et mêmes entrées que le fichier d'origine (seules les valeurs changent)
+    QByteArray d(2, 0);
+    qToLittleEndian<quint16>(m_cfgVersion, d.data());
+    QList<int> keys = m_cfgKeys;
+    if (keys.isEmpty())
+        for (int i = 0; i < cfg.values.size(); ++i)
+            keys << i;
+    for (int i : std::as_const(keys)) {
         char b[4];
         qToLittleEndian<quint16>(quint16(i), b);
         qToLittleEndian<quint16>(quint16(cfg.values[i]), b + 2);
@@ -368,6 +380,15 @@ bool LuniiDevice::setConfig(const DeviceConfig &cfg)
     m_config = cfg;
     m_config.supported = true;
     return true;
+}
+
+QList<QPair<QString, QString>> LuniiDevice::keyFiles() const
+{
+    QList<QPair<QString, QString>> out{{"appareil/.md", m_mount + "/.md"}};
+    const QStringList own = QDir(configDir()).entryList({snu() + ".keys", snu() + ".v*.md"}, QDir::Files);
+    for (const QString &f : own)
+        out << qMakePair("lunii-qt/" + f, configDir() + "/" + f);
+    return out;
 }
 
 // ---------------------------------------------------------------- chiffrement
@@ -492,6 +513,24 @@ bool LuniiDevice::checkV3Key(const QString &storyPath) const
     QByteArray key, iv;
     storyKeysFor(m_deviceKey, m_deviceIv, storyPath + "/bt", hexSnu(m_snu), key, iv);
     return aesDecipherHead(ri.readAll(), key, iv).startsWith("000");
+}
+
+bool LuniiDevice::findV3Keys(const QString &storyPath, QByteArray &key, QByteArray &iv) const
+{
+    QFile ri(storyPath + "/ri");
+    if (!ri.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray head = ri.read(0x200);
+    QByteArray k, v;
+    storyKeysFor(m_deviceKey, m_deviceIv, storyPath + "/bt", hexSnu(m_snu), k, v);
+    for (const auto &[ck, cv] : {qMakePair(k, v), qMakePair(m_storyKey, m_storyIv)}) {
+        if (ck.size() == 16 && cv.size() == 16 && aesDecipherHead(head, ck, cv).startsWith("000")) {
+            key = ck;
+            iv = cv;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool LuniiDevice::checkV2Bt(const QString &storyPath) const
@@ -866,9 +905,15 @@ QString LuniiDevice::exportStory(const QUuid &u, const QString &outDir)
         error(tr("Dossier de l'histoire introuvable (%1)").arg(storyDir(s)));
         return {};
     }
-    // Lunii.QT interdit l'export déchiffré des histoires officielles sur v1/v2 : sauvegarde chiffrée à la place
-    const bool official = m_hw != HwVersion::V3 && StoryDb::instance().isOfficial(u);
-    return canExportPlain() && !official ? exportPlain(s, outDir) : exportBackup(s, outDir);
+    // histoires officielles : toujours la sauvegarde chiffrée, jamais de version déchiffrée
+    if (StoryDb::instance().isOfficial(u))
+        return exportBackup(s, outDir);
+    // v3 sans clés de l'appareil : les histoires importées avec la clé dérivée du numéro de série restent lisibles
+    QByteArray k, iv;
+    if (m_hw == HwVersion::V3 ? findV3Keys(storyDir(s), k, iv) : canExportPlain())
+        return exportPlain(s, outDir);
+    info(tr("Histoire chiffrée avec des clés inconnues : sauvegarde chiffrée"));
+    return exportBackup(s, outDir);
 }
 
 QString LuniiDevice::exportBackup(const DeviceStory &s, const QString &outDir)
@@ -903,10 +948,7 @@ QString LuniiDevice::exportPlain(const DeviceStory &s, const QString &outDir)
     info(tr("Export de %1 - %2").arg(s.shortId(), title));
     QByteArray savedKey = m_storyKey, savedIv = m_storyIv;
     if (m_hw == HwVersion::V3) {
-        storyKeysFor(m_deviceKey, m_deviceIv, dir + "/bt", hexSnu(m_snu), m_storyKey, m_storyIv);
-        if (!checkV3Key(dir)) {
-            m_storyKey = savedKey;
-            m_storyIv = savedIv;
+        if (!findV3Keys(dir, m_storyKey, m_storyIv)) {
             error(tr("Les clés de l'appareil sont nécessaires pour exporter cette histoire"));
             return {};
         }

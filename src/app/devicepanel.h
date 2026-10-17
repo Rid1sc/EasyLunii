@@ -58,11 +58,14 @@ signals:
     void storiesChanged();
     void logMessage(int level, const QString &message);
     void progress(const QString &label, int current, int total);
+    void transferDetail(const QString &text);   // débit d'écriture…
 
 public slots:
     void reloadStories();
     void recover();
     void cleanup();
+    void saveKeys();
+    void restoreKeys();
     void nightModeSettings();
 
 private:

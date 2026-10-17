@@ -1,5 +1,6 @@
 #include "core/storydevice.h"
 
+#include "core/archive.h"
 #include "core/device.h"
 #include "core/flamdevice.h"
 #include "core/storydb.h"
@@ -9,6 +10,9 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStorageInfo>
 
 #ifdef Q_OS_WIN
@@ -92,6 +96,73 @@ static bool diskSpace(const QString &path, qint64 *avail, qint64 *total)
     return true;
 }
 #endif
+
+// ---------------------------------------------------------------- sauvegarde des clés
+
+static const char KEYS_MARKER[] = "easylunii-cles.json";
+
+QString StoryDevice::exportKeys(const QString &outDir)
+{
+    const QString zipPath = QString("%1/EasyLunii-cles-%2-%3.zip")
+                                .arg(outDir, snu(), QDateTime::currentDateTime().toString("yyyyMMdd"));
+    ArchiveWriter w(zipPath);
+    int n = 0;
+    for (const auto &[name, path] : keyFiles()) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly))
+            continue;
+        if (!w.add(name, f.readAll())) {
+            error(tr("Échec de création du zip : %1").arg(w.error()));
+            return {};
+        }
+        ++n;
+    }
+    const QJsonObject info{{"device", kind() == Kind::Flam ? "flam" : "lunii"}, {"snu", snu()}, {"description", describe()},
+                           {"date", QDateTime::currentDateTime().toString(Qt::ISODate)}};
+    if (n == 0 || !w.add(KEYS_MARKER, QJsonDocument(info).toJson()) || !w.close()) {
+        error(tr("Sauvegarde des clés impossible"));
+        QFile::remove(zipPath);
+        return {};
+    }
+    this->info(tr("Clés sauvegardées (%1 fichiers) : %2").arg(n).arg(zipPath));
+    return zipPath;
+}
+
+int StoryDevice::restoreKeys(const QString &zipPath, QString *err)
+{
+    ArchiveReader r(zipPath);
+    if (!r.contains(KEYS_MARKER)) {
+        if (err)
+            *err = QObject::tr("Ce fichier n'est pas une sauvegarde de clés EasyLunii.");
+        return -1;
+    }
+    QDir().mkpath(configDir());
+    int copied = 0;
+    bool ok = true;
+    r.forEach([&](const ArchiveEntry &e, const QByteArray &data) {
+        if (!e.name.startsWith("lunii-qt/"))
+            return true;   // le .md/.mdf de l'appareil reste dans la sauvegarde : jamais réécrit
+        const QString name = QFileInfo(e.name).fileName();
+        if (name.isEmpty() || name.contains(".."))
+            return true;
+        QFile f(configDir() + "/" + name);
+        if (f.open(QIODevice::ReadOnly) && f.readAll() == data)
+            return true;   // déjà là
+        f.close();
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate) || f.write(data) != data.size()) {
+            ok = false;
+            return false;
+        }
+        ++copied;
+        return true;
+    });
+    if (!ok) {
+        if (err)
+            *err = QObject::tr("Écriture impossible dans %1").arg(configDir());
+        return -1;
+    }
+    return copied;
+}
 
 qint64 StoryDevice::freeSpace() const
 {

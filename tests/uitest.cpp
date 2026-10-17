@@ -7,6 +7,7 @@
 #include "app/library.h"
 #include "app/librarymodel.h"
 #include "app/librarypage.h"
+#include "app/transferpanel.h"
 #include "app/editor/audiotransport.h"
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
@@ -33,6 +34,7 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QThread>
 #include <QTreeWidgetItemIterator>
 #include <QUndoStack>
 
@@ -142,6 +144,28 @@ static void testDevicePanel()
     waitIdle(jobs);
     CHECK(panel.device()->stories().size() == before);
     CHECK(!QFileInfo(mount + "/.content/" + lunii::shortUuid(u)).exists());
+}
+
+// File des transferts : tâches en attente visibles, retrait d'une tâche, historique
+static void testTransferQueue()
+{
+    JobQueue jobs;
+    TransferPanel panel(&jobs);
+    QStringList ran;
+    for (int i = 1; i <= 4; ++i)
+        jobs.enqueue(QString("tâche %1").arg(i), [i]() { QThread::msleep(300); return i != 4; },
+                     [&ran, i](bool) { ran << QString::number(i); });
+    auto *pending = panel.findChildren<QListWidget *>().value(0);
+    CHECK(pending && pending->count() == 3);   // la 1re est en cours
+    CHECK(jobs.currentLabel() == "tâche 1");
+    const auto ids = jobs.pendingJobs();
+    CHECK(ids.size() == 3 && jobs.removePending(ids[1].first));   // retire « tâche 3 »
+    CHECK(pending && pending->count() == 2);
+    WAIT_FOR(!jobs.isBusy(), 5000);
+    CHECK(ran == QStringList({"1", "2", "4"}));
+    CHECK(jobs.history().size() == 3 && !jobs.history().first().ok && jobs.history().first().label == "tâche 4");
+    auto *done = panel.findChildren<QListWidget *>().value(1);
+    CHECK(done && done->count() == 3);
 }
 
 static void testLibraryDropFromDevice()
@@ -409,6 +433,7 @@ int main(int argc, char **argv)
     g_mdDir = argv[1];
     g_pack = argv[2];
     lunii::StoryDb::instance().load(false);
+    testTransferQueue();
     testDevicePanel();
     testLibraryDropFromDevice();
     EditorPageTest::run();

@@ -48,6 +48,7 @@ add_library(luniiapp STATIC
     src/app/library.cpp
     src/app/librarymodel.cpp
     src/app/librarypage.cpp
+    src/app/transferpanel.cpp
     src/app/devicepanel.cpp
     src/app/editorpage.cpp
     src/app/editor/graphitems.cpp

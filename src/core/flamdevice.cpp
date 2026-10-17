@@ -56,6 +56,15 @@ FlamDevice::FlamDevice(const QString &mountPoint, QObject *parent) : StoryDevice
     m_valid = true;
 }
 
+QList<QPair<QString, QString>> FlamDevice::keyFiles() const
+{
+    QList<QPair<QString, QString>> out{{"appareil/.mdf", m_mount + "/.mdf"}};
+    const QStringList own = QDir(configDir()).entryList({snu() + ".v*.mdf"}, QDir::Files);
+    for (const QString &f : own)
+        out << qMakePair("lunii-qt/" + f, configDir() + "/" + f);
+    return out;
+}
+
 // ---------------------------------------------------------------- métadonnées (.mdf)
 
 bool FlamDevice::parseMdf()

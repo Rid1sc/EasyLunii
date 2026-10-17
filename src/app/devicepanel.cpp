@@ -314,6 +314,8 @@ void DevicePanel::selectDevice(int index)
         connect(m_device, &StoryDevice::log, this, &DevicePanel::logMessage);
         connect(m_device, &StoryDevice::storyProgress, this,
                 [this](const QString &id, int c, int t) { emit progress(id, c, t); });
+        connect(m_device, &StoryDevice::fileProgress, this,
+                [this](const QString &label, qint64, qint64) { emit transferDetail(label); });
     }
     reloadStories();
     emit deviceChanged();
@@ -332,6 +334,8 @@ void DevicePanel::openPath(const QString &mountPoint)
     connect(m_device, &StoryDevice::log, this, &DevicePanel::logMessage);
     connect(m_device, &StoryDevice::storyProgress, this,
             [this](const QString &id, int c, int t) { emit progress(id, c, t); });
+    connect(m_device, &StoryDevice::fileProgress, this,
+            [this](const QString &label, qint64, qint64) { emit transferDetail(label); });
     m_combo->blockSignals(true);
     m_combo->insertItem(0, QIcon::fromTheme("folder"), mountPoint);
     m_combo->setCurrentIndex(0);
@@ -554,6 +558,44 @@ void DevicePanel::recover()
                 == QMessageBox::Yes)
                 runOnDevice(tr("Récupération"), [](StoryDevice *d) { return d->recoverStories(false) >= 0; });
         });
+}
+
+void DevicePanel::saveKeys()
+{
+    if (!m_device || !m_device->isValid()) {
+        QMessageBox::information(this, tr("Sauvegarder les clés"), tr("Branchez et montez d'abord une conteuse."));
+        return;
+    }
+    const QString dir = QFileDialog::getExistingDirectory(this, tr("Enregistrer la sauvegarde des clés dans…"));
+    if (dir.isEmpty())
+        return;
+    const QString zip = m_device->exportKeys(dir);
+    if (zip.isEmpty())
+        QMessageBox::warning(this, tr("Sauvegarder les clés"), tr("Échec de la sauvegarde (voir le journal)."));
+    else
+        QMessageBox::information(this, tr("Sauvegarder les clés"),
+                                 tr("Clés et fichier d'identité de la conteuse enregistrés dans :\n%1\n\n"
+                                    "Gardez ce fichier en lieu sûr : il permet de retrouver les clés sur un autre "
+                                    "ordinateur (Lunii, menu « Restaurer des clés »).").arg(zip));
+}
+
+void DevicePanel::restoreKeys()
+{
+    const QString zip = QFileDialog::getOpenFileName(this, tr("Sauvegarde de clés"), {}, tr("Sauvegardes EasyLunii (EasyLunii-cles-*.zip);;Zip (*.zip)"));
+    if (zip.isEmpty())
+        return;
+    QString err;
+    const int n = StoryDevice::restoreKeys(zip, &err);
+    if (n < 0) {
+        QMessageBox::warning(this, tr("Restaurer des clés"), err);
+        return;
+    }
+    QMessageBox::information(this, tr("Restaurer des clés"),
+                             n ? tr("%n fichier(s) de clés restauré(s) dans %1. Rien n'a été écrit sur la conteuse.", nullptr, n)
+                                     .arg(lunii::configDir())
+                               : tr("Ces clés étaient déjà présentes."));
+    if (n && m_device)
+        openPath(m_device->mountPoint());   // relit la conteuse avec les clés retrouvées
 }
 
 void DevicePanel::cleanup()
