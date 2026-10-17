@@ -55,6 +55,8 @@ add_library(luniiapp STATIC
     src/app/editor/audiotransport.cpp
     src/app/editor/simulator.cpp
     src/app/editor/wizard.cpp
+    src/app/sources/plugin.cpp
+    src/app/sources/sourcedialog.cpp
 )
 target_link_libraries(luniiapp PUBLIC luniicore Qt6::Widgets Qt6::Concurrent Qt6::Multimedia Qt6::Sql)
 target_compile_options(luniiapp PRIVATE -Wall -Wextra)
@@ -67,6 +69,21 @@ else()
 endif()
 target_compile_definitions(easylunii PRIVATE EASYLUNII_VERSION="${PROJECT_VERSION}")
 target_link_libraries(easylunii PRIVATE luniiapp)
+
+# --- Plugins de sources audio (programmes séparés, voir PLUGINS.md)
+function(easylunii_plugin name)
+    set(dir ${CMAKE_BINARY_DIR}/plugins/${name})
+    set_target_properties(easylunii-${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${dir})
+    configure_file(plugins/${name}/plugin.json ${dir}/plugin.json COPYONLY)
+    if(NOT WIN32)
+        install(TARGETS easylunii-${name} RUNTIME DESTINATION share/easylunii/plugins/${name})
+        install(FILES plugins/${name}/plugin.json DESTINATION share/easylunii/plugins/${name})
+    endif()
+endfunction()
+
+add_executable(easylunii-podcast plugins/podcast/main.cpp)
+target_link_libraries(easylunii-podcast PRIVATE Qt6::Core Qt6::Network)
+easylunii_plugin(podcast)
 
 option(EASYLUNII_TESTS "Tests d'interface" ON)
 if(EASYLUNII_TESTS)

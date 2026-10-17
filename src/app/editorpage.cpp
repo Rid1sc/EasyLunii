@@ -4,6 +4,7 @@
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
 #include "app/editor/wizard.h"
+#include "app/sources/sourcedialog.h"
 #include "app/jobqueue.h"
 #include "core/convert.h"
 
@@ -431,8 +432,10 @@ void EditorPage::buildUi()
     auto *audStop = new QPushButton(QIcon::fromTheme("media-playback-stop"), QString());
     audStop->setToolTip(tr("Arrêter"));
     auto *audPick = new QPushButton(QIcon::fromTheme("document-open"), tr("Son…"));
+    auto *audSource = new QPushButton(QIcon::fromTheme("folder-sound"), tr("Source…"));
+    audSource->setToolTip(tr("Son depuis un plugin de source (podcast, vidéo…)"));
     auto *audClear = new QPushButton(QIcon::fromTheme("edit-clear"), tr("Retirer"));
-    for (auto *b : {audPlay, audStop, audPick, audClear})
+    for (auto *b : {audPlay, audStop, audPick, audSource, audClear})
         audBtns->addWidget(b);
     m_transport = new AudioTransport;
     auto *ctrlBox = new QGroupBox(tr("Commandes actives sur ce nœud"));
@@ -503,6 +506,17 @@ void EditorPage::buildUi()
         if (i < 0 || f.isEmpty())
             return;
         const QString a = importAudio(f);
+        if (!a.isEmpty())
+            change(tr("Son"), [this, i, a]() { m_pack.stages[i].audio = a; });
+    });
+    connect(audSource, &QPushButton::clicked, this, [this, stageIdx]() {
+        const int i = stageIdx();
+        if (i < 0)
+            return;
+        SourceDialog d(SourceDialog::SingleSound, m_jobs, this);
+        if (!d.exec() || d.soundFile().isEmpty())
+            return;
+        const QString a = importAudio(d.soundFile());
         if (!a.isEmpty())
             change(tr("Son"), [this, i, a]() { m_pack.stages[i].audio = a; });
     });
@@ -1259,6 +1273,7 @@ void EditorPage::wizard()
     if (!maybeSave())
         return;
     PackWizard w(m_spill.path(), this);
+    w.setJobQueue(m_jobs);
     if (w.exec() != QDialog::Accepted)
         return;
     m_pack = w.result();

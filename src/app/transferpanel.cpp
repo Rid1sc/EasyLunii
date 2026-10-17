@@ -60,6 +60,7 @@ TransferPanel::TransferPanel(JobQueue *jobs, QWidget *parent) : QWidget(parent),
         m_bar->setRange(0, 0);   // indéterminé jusqu'à la première progression
         m_detail->clear();
     });
+    connect(m_jobs, &JobQueue::progressed, this, &TransferPanel::setFraction);
     connect(m_stop, &QPushButton::clicked, this, &TransferPanel::abortCurrent);
     connect(m_remove, &QPushButton::clicked, this, &TransferPanel::removeSelected);
     connect(m_clearPending, &QPushButton::clicked, m_jobs, &JobQueue::clearPending);
@@ -76,6 +77,17 @@ void TransferPanel::setProgress(int current, int total)
         m_bar->setValue(qMin(current + 1, total));
         m_bar->setFormat(tr("fichier %v / %m"));
     }
+}
+
+void TransferPanel::setFraction(double fraction, const QString &detail)
+{
+    if (fraction >= 0) {
+        m_bar->setRange(0, 1000);
+        m_bar->setValue(int(fraction * 1000));
+        m_bar->setFormat(QStringLiteral("%p %"));
+    }
+    if (!detail.isEmpty())
+        m_detail->setText(detail);
 }
 
 void TransferPanel::setDetail(const QString &text)

@@ -24,7 +24,9 @@ public:
     };
 
     explicit JobQueue(QObject *parent = nullptr);
-    void enqueue(const QString &label, std::function<bool()> run, std::function<void(bool)> done = {});
+    int enqueue(const QString &label, std::function<bool()> run, std::function<void(bool)> done = {});   // n° de la tâche
+    // progression de la tâche en cours, appelable depuis le thread de travail (0 à 1, -1 : inconnue)
+    void reportProgress(double fraction, const QString &detail);
     bool isBusy() const { return m_running || !m_queue.isEmpty(); }
     int pending() const { return int(m_queue.size()); }
     void clearPending();
@@ -41,6 +43,7 @@ signals:
     void finished(const QString &label, bool ok);
     void idle();
     void changed();   // file, tâche en cours ou historique modifiés
+    void progressed(double fraction, const QString &detail);
 
 private:
     void next();

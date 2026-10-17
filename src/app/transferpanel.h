@@ -18,6 +18,7 @@ public:
 public slots:
     void setProgress(int current, int total);   // fichiers de l'histoire en cours
     void setDetail(const QString &text);        // débit…
+    void setFraction(double fraction, const QString &detail);   // téléchargements (0 à 1)
 
 signals:
     void abortCurrent();

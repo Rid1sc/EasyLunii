@@ -12,6 +12,7 @@
 #include "app/editor/graphitems.h"
 #include "app/editor/simulator.h"
 #include "app/editor/wizard.h"
+#include "app/sources/sourcedialog.h"
 #include "core/convert.h"
 #include "core/device.h"
 #include "core/flamdevice.h"
@@ -19,7 +20,11 @@
 #include "core/studiopack.h"
 
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QTreeWidget>
+#include <QAbstractButton>
 #include <QDir>
 #include <QDropEvent>
 #include <QElapsedTimer>
@@ -388,6 +393,44 @@ static void announces()
     CHECK(mi.valid && mi.mono && mi.sampleRate == 44100);
 }
 
+// Source « Podcasts » sur un vrai flux (réseau) : ouverture d'un lien, choix de 2 épisodes,
+// téléchargement par la file des transferts, puis cache (2e passage sans réseau pour l'audio)
+static void podcastSource()
+{
+    JobQueue jobs;
+    SourceDialog d(SourceDialog::Stories, &jobs);
+    CHECK(d.hasPlugins());
+    const int pi = d.m_plugin->findText("Podcasts");
+    CHECK(pi >= 0);
+    d.m_plugin->setCurrentIndex(pi);
+    d.m_query->setText("https://www.radiofrance.fr/franceinter/podcasts/une-histoire-et-oli");
+    d.go();
+    WAIT_FOR(d.m_list->topLevelItemCount() > 5, 30000);
+    // les 2 plus courts, pour aller vite
+    QList<int> order;
+    for (int i = 0; i < d.m_items.size(); ++i)
+        order << i;
+    std::sort(order.begin(), order.end(), [&](int a, int b) { return d.m_items[a].duration < d.m_items[b].duration; });
+    for (int k = 0; k < 2 && k < order.size(); ++k)
+        d.m_list->topLevelItem(order[k])->setCheckState(0, Qt::Checked);
+    d.m_grouping->button(2)->setChecked(true);   // une seule histoire, 2 parties
+    QElapsedTimer t;
+    t.start();
+    d.accept();
+    const qint64 first = t.elapsed();
+    const auto stories = d.stories();
+    CHECK(stories.size() == 1 && stories.first().parts.size() == 2);
+    CHECK(!stories.isEmpty() && QFileInfo(stories.first().parts.first()).size() > 100000);
+    CHECK(!stories.isEmpty() && !stories.first().image.isEmpty());
+    CHECK(jobs.history().size() == 2 && jobs.history().first().ok);
+    // 2e fois : depuis le cache
+    t.restart();
+    d.accept();
+    qInfo("source podcasts : %lld ms puis %lld ms (cache), histoire « %s »", first, t.elapsed(),
+          qPrintable(stories.isEmpty() ? QString() : stories.first().title));
+    CHECK(t.elapsed() < first);
+}
+
 // Assistant : zips d'histoires (parties à réunir) -> pack à thèmes, puis import sur une fausse Lunii
 static void wizard(const QStringList &zips)
 {
@@ -439,6 +482,8 @@ int main(int argc, char **argv)
     EditorPageTest::run();
     EditorPageTest::transport();
     EditorPageTest::announces();
+    if (qEnvironmentVariableIsSet("EASYLUNII_TEST_NETWORK"))
+        EditorPageTest::podcastSource();
     if (argc > 3)
         EditorPageTest::wizard(QCoreApplication::arguments().mid(3));
     qInfo("%s : %d échec(s)", g_failures ? "ÉCHEC" : "SUCCÈS", g_failures);

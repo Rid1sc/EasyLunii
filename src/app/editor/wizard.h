@@ -5,6 +5,7 @@
 
 #include <QDialog>
 
+class JobQueue;
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -19,6 +20,7 @@ class PackWizard : public QDialog
 public:
     explicit PackWizard(const QString &spillDir, QWidget *parent = nullptr);
     lunii::StudioPack result() const { return m_result; }
+    void setJobQueue(JobQueue *jobs) { m_jobs = jobs; }   // téléchargements depuis les sources
 
     struct StoryInput {
         QString title;
@@ -47,4 +49,5 @@ private:
     QLabel *m_coverLabel;
     lunii::StudioPack m_result;
     QString m_spillDir;
+    JobQueue *m_jobs = nullptr;
 };

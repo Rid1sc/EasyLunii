@@ -1,5 +1,6 @@
 #include "app/editor/wizard.h"
 
+#include "app/sources/sourcedialog.h"
 #include "core/archive.h"
 #include "core/convert.h"
 #include "core/platform.h"
@@ -41,8 +42,8 @@ using lunii::ActionNode;
 using lunii::StageNode;
 using lunii::StudioPack;
 
-static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "flac", "opus", "aac"};
-static const QString AUDIO_FILTER = QStringLiteral("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.flac *.opus *.aac)");
+static const QStringList AUDIO_EXT = {"mp3", "ogg", "oga", "wav", "m4a", "m4b", "flac", "opus", "aac", "webm", "mka"};
+static const QString AUDIO_FILTER = QStringLiteral("Audio (*.mp3 *.ogg *.oga *.wav *.m4a *.m4b *.flac *.opus *.aac *.webm *.mka)");
 
 // Enregistrement d'annonce : « titre.mp3 », « Annonce.m4a »… dans le dossier ou le zip d'une histoire
 static bool isAnnounceName(const QString &file)
@@ -147,6 +148,8 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     auto *btns = new QHBoxLayout;
     auto *addF = new QPushButton(QIcon::fromTheme("list-add"), tr("Fichiers audio…"), this);
     auto *addZ = new QPushButton(QIcon::fromTheme("archive-insert"), tr("Zips ou dossiers…"), this);
+    auto *addS = new QPushButton(QIcon::fromTheme("folder-sound"), tr("Depuis une source…"), this);
+    addS->setToolTip(tr("Podcasts, vidéos… via les plugins de sources installés"));
     auto *img = new QPushButton(QIcon::fromTheme("insert-image"), tr("Image…"), this);
     auto *ann = new QPushButton(QIcon::fromTheme("audio-input-microphone"), tr("Annonce…"), this);
     ann->setToolTip(tr("Enregistrement qui annonce le titre de l'histoire sélectionnée (remplace Piper). "
@@ -154,7 +157,7 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     auto *up = new QPushButton(QIcon::fromTheme("go-up"), QString(), this);
     auto *down = new QPushButton(QIcon::fromTheme("go-down"), QString(), this);
     auto *rem = new QPushButton(QIcon::fromTheme("list-remove"), tr("Retirer"), this);
-    for (auto *b : {addF, addZ, img, ann, up, down, rem})
+    for (auto *b : {addF, addZ, addS, img, ann, up, down, rem})
         btns->addWidget(b);
     btns->addStretch();
     lay->addLayout(btns);
@@ -215,6 +218,14 @@ PackWizard::PackWizard(const QString &spillDir, QWidget *parent) : QDialog(paren
     connect(bb, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(addF, &QPushButton::clicked, this, &PackWizard::addFiles);
     connect(addZ, &QPushButton::clicked, this, &PackWizard::addContainers);
+    connect(addS, &QPushButton::clicked, this, [this]() {
+        SourceDialog d(SourceDialog::Stories, m_jobs, this);
+        if (!d.exec())
+            return;
+        for (const SourceDialog::Story &s : d.stories())
+            m_stories << StoryInput{s.title, s.parts, s.image, {}};
+        refresh();
+    });
     connect(rem, &QPushButton::clicked, this, &PackWizard::removeSelected);
     connect(up, &QPushButton::clicked, this, [this]() { moveSelected(-1); });
     connect(down, &QPushButton::clicked, this, [this]() { moveSelected(1); });

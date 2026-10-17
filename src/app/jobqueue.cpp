@@ -7,12 +7,19 @@ static constexpr int HISTORY_MAX = 50;
 
 JobQueue::JobQueue(QObject *parent) : QObject(parent) {}
 
-void JobQueue::enqueue(const QString &label, std::function<bool()> run, std::function<void(bool)> done)
+int JobQueue::enqueue(const QString &label, std::function<bool()> run, std::function<void(bool)> done)
 {
-    m_queue.enqueue({m_nextId++, label, std::move(run), std::move(done)});
+    const int id = m_nextId++;
+    m_queue.enqueue({id, label, std::move(run), std::move(done)});
     emit changed();
     if (!m_running)
         next();
+    return id;
+}
+
+void JobQueue::reportProgress(double fraction, const QString &detail)
+{
+    emit progressed(fraction, detail);   // connexion en file d'attente vers l'interface
 }
 
 void JobQueue::clearPending()
